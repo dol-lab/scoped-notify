@@ -1,0 +1,483 @@
+<?php
+/**
+ * Resolves who should receive notifications based on context.
+ *
+ * @package Scoped_Notify
+ */
+
+namespace Scoped_Notify;
+
+// Exit if accessed directly.
+defined( 'ABSPATH' ) || exit;
+
+// Use fully qualified names for WP classes
+use \WP_Post;
+use \WP_Comment;
+use \Psr\Log\LoggerInterface;
+use \Psr\Log\NullLogger;
+
+/**
+ * Determines notification recipients.
+ */
+class Notification_Resolver {
+
+	/**
+	 * Default notification state. True means receive notifications unless explicitly muted.
+	 *
+	 * @var bool
+	 */
+	const DEFAULT_NOTIFICATION_STATE = true;
+
+	/**
+	 * WordPress database object.
+	 *
+	 * @var \wpdb
+	 */
+	private $wpdb;
+
+	/**
+	 * Logger instance.
+	 *
+	 * @var LoggerInterface
+	 */
+	private $logger;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param \wpdb                $wpdb   WordPress database object.
+	 * @param LoggerInterface|null $logger Logger instance. Defaults to NullLogger if not provided.
+	 */
+	public function __construct( \wpdb $wpdb, ?LoggerInterface $logger = null ) {
+		$this->wpdb   = $wpdb;
+		$this->logger = $logger ?? new NullLogger();
+	}
+
+	/**
+	 * Get the user IDs who should receive a notification for a specific post publication.
+	 *
+	 * @param WP_Post $post    The post object.
+	 * @param string  $channel The notification channel (default 'mail').
+	 * @return array List of user IDs. Returns empty array on error (e.g., invalid post type).
+	 */
+	public function get_recipients_for_post( WP_Post $post, string $channel = 'mail' ): array {
+		$blog_id     = \get_current_blog_id(); // Assuming the action runs within the blog context.
+		$post_type   = $post->post_type;
+		$trigger_key = 'post-' . $post_type;
+		$trigger_id  = $this->get_trigger_id( $trigger_key, $channel );
+
+		if ( ! $trigger_id ) {
+			$this->logger->error(
+				"Could not resolve trigger ID for post type '{post_type}' on blog {blog_id}.",
+				array(
+					'post_type' => $post_type,
+					'blog_id'   => $blog_id,
+				)
+			);
+			return array(); // Cannot proceed without a trigger ID
+		}
+
+		$potential_recipient_ids = $this->get_blog_member_ids( $blog_id );
+		if ( empty( $potential_recipient_ids ) ) {
+			return array(); // No users associated with this blog.
+		}
+
+		$term_ids             = \wp_get_post_terms( $post->ID, \get_object_taxonomies( $post_type ), array( 'fields' => 'ids' ) );
+		$term_ids_placeholder = ! empty( $term_ids ) ? implode( ',', array_fill( 0, count( $term_ids ), '%d' ) ) : 'NULL';
+
+		$user_ids_placeholder = ! empty( $potential_recipient_ids ) ? implode( ',', array_fill( 0, count( $potential_recipient_ids ), '%d' ) ) : 'NULL';
+
+		// Prepare arguments ONLY for the %d/%s/%f placeholders used by wpdb::prepare.
+		// Arguments for the IN clauses are handled by direct SQL string interpolation below.
+		$prepare_args = array(
+			$blog_id,    // 1: blog.blog_id = %d
+			$trigger_id, // 2: blog.trigger_id = %d
+			$blog_id,    // 3: term_unmute.blog_id = %d
+			$trigger_id, // 4: term_unmute.trigger_id = %d
+			$blog_id,    // 5: term_mute.blog_id = %d
+			$trigger_id, // 6: term_mute.trigger_id = %d
+			$trigger_id, // 7: network.trigger_id = %d
+		);
+
+		// Manually prepare the values for the IN clauses, ensuring they are integers.
+		// This prevents SQL injection as we are building the IN clause string directly.
+		$safe_potential_recipient_ids = ! empty( $potential_recipient_ids ) ? implode( ',', array_map( 'intval', $potential_recipient_ids ) ) : 'NULL';
+		$safe_term_ids                = ! empty( $term_ids ) ? implode( ',', array_map( 'intval', $term_ids ) ) : 'NULL';
+
+		// This query fetches all relevant settings for all potential users in one go.
+		// It uses LEFT JOINs so we always get a row per potential user, even if they have no specific settings.
+		// COALESCE is used to determine the final mute state based on specificity rules.
+		// Table names are hardcoded as per config/database-tables.php
+		$sql = "
+            SELECT
+                u.ID as user_id,
+                COALESCE(
+                    term_unmute.mute, -- Specificity 2a: Term unmute (unmute wins)
+                    term_mute.mute,   -- Specificity 2b: Term mute (if no unmute for any term)
+                    blog.mute,        -- Specificity 3: Blog setting
+                    network.mute      -- Specificity 4: Network setting
+                    -- Specificity 5 (Default) is handled in PHP if COALESCE returns NULL
+                ) as final_mute_state
+            FROM
+                {$this->wpdb->users} u
+            LEFT JOIN sn_scoped_settings_blogs blog ON blog.user_id = u.ID
+                AND blog.blog_id = %d
+                AND blog.trigger_id = %d
+            LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0)
+                SELECT user_id, MIN(mute) as mute -- MIN(mute) will be 0 if any term is unmuted
+                FROM sn_scoped_settings_terms
+                WHERE blog_id = %d
+                AND trigger_id = %d
+                AND user_id IN ({$safe_potential_recipient_ids}) -- Use safe, interpolated values
+                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$safe_term_ids})" : 'AND 1=0' ) . " -- Use safe, interpolated values
+                GROUP BY user_id
+                HAVING MIN(mute) = 0 -- Only keep users with at least one explicit unmute
+            ) term_unmute ON term_unmute.user_id = u.ID
+             LEFT JOIN ( -- Find the mute status IF all relevant term settings are MUTE (1)
+                SELECT user_id, MAX(mute) as mute -- MAX(mute) will be 1 only if ALL relevant terms are muted
+                FROM sn_scoped_settings_terms
+                WHERE blog_id = %d
+                AND trigger_id = %d
+                AND user_id IN ({$safe_potential_recipient_ids}) -- Use safe, interpolated values
+                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$safe_term_ids})" : 'AND 1=0' ) . " -- Use safe, interpolated values
+                GROUP BY user_id
+                HAVING MAX(mute) = 1 -- Only keep users where all settings are explicit mute
+            ) term_mute ON term_mute.user_id = u.ID AND term_unmute.user_id IS NULL -- Only consider if no term unmute exists
+            LEFT JOIN sn_scoped_settings_network_users network ON network.user_id = u.ID
+                AND network.trigger_id = %d
+            WHERE
+                u.ID IN ({$safe_potential_recipient_ids}) -- Use safe, interpolated values
+        ";
+
+		// Prepare the SQL statement using only the arguments for %d/%s/%f placeholders
+		$prepared_sql = $this->wpdb->prepare( $sql, $prepare_args );
+
+		// Check if prepare failed (returned empty string or false)
+		if ( empty( $prepared_sql ) ) {
+			$this->logger->error(
+				'wpdb::prepare failed to prepare the SQL query for get_recipients_for_post.',
+				array(
+					'last_error' => $this->wpdb->last_error,
+					'sql'        => $sql, // Log the raw SQL for debugging
+					'args'       => $prepare_args, // Log the args passed to prepare
+					'post_id'    => $post->ID,
+					'blog_id'    => $blog_id,
+					'trigger_id' => $trigger_id,
+				)
+			);
+			return array();
+		}
+
+		$results = $this->wpdb->get_results( $prepared_sql );
+		// Optional: Keep the error log for debugging during development if needed
+		// error_log( '' . __FILE__ . ' on line ' . __LINE__ . "\n" . print_r( compact( 'prepared_sql', 'sql', 'prepare_args' ), true ) );
+
+		// Check for DB errors before proceeding
+		if ( $results === null ) {
+			$this->logger->error(
+				'Database error occurred while fetching notification settings for post.',
+				array(
+					'query'      => $this->wpdb->last_query,
+					'error'      => $this->wpdb->last_error,
+					'post_id'    => $post->ID,
+					'blog_id'    => $blog_id,
+					'trigger_id' => $trigger_id,
+				)
+			);
+			return array(); // Return empty on DB error
+		}
+
+		$recipient_ids = array();
+		foreach ( $results as $result ) {
+			$user_id          = (int) $result->user_id;
+			$final_mute_state = $result->final_mute_state; // Can be NULL, '0', or '1'
+
+			$is_muted = false; // Default based on rules (Specificity 5)
+			if ( $final_mute_state === null ) {
+				// No specific setting found at any level, use default
+				$is_muted = ! self::DEFAULT_NOTIFICATION_STATE;
+			} else {
+				// Explicit setting found
+				$is_muted = (bool) $final_mute_state; // '0' -> false (unmuted), '1' -> true (muted)
+			}
+
+			if ( ! $is_muted ) {
+				$recipient_ids[] = $user_id;
+			}
+		}
+
+		// Add mentioned users - they override mute settings.
+		$mentioned_user_ids  = $this->get_mentioned_user_ids( $post->post_content );
+		$final_recipient_ids = array_unique( array_merge( $recipient_ids, $mentioned_user_ids ) );
+
+		return $final_recipient_ids;
+	}
+
+	/**
+	 * Get the user IDs who should receive a notification for a specific comment.
+	 *
+	 * @param WP_Comment $comment The comment object.
+	 * @param string     $channel The notification channel (default 'mail').
+	 * @return array List of user IDs. Returns empty array on error.
+	 */
+	public function get_recipients_for_comment( WP_Comment $comment, string $channel = 'mail' ): array {
+		$blog_id = \get_current_blog_id(); // Assuming the action runs within the blog context.
+		$post    = \get_post( $comment->comment_post_ID );
+		if ( ! $post ) {
+			$this->logger->error(
+				'Could not find parent post for comment ID {comment_id}.',
+				array( 'comment_id' => $comment->comment_ID )
+			);
+			return array();
+		}
+
+		$post_type = $post->post_type;
+		// Comment trigger key includes the PARENT post type
+		$trigger_key = 'comment-' . $post_type;
+		$trigger_id  = $this->get_trigger_id( $trigger_key, $channel );
+
+		if ( ! $trigger_id ) {
+			$this->logger->error(
+				"Could not resolve trigger ID for comment on post type '{post_type}' (Post ID {post_id}) on blog {blog_id}.",
+				array(
+					'post_type' => $post_type,
+					'post_id'   => $post->ID,
+					'blog_id'   => $blog_id,
+				)
+			);
+			return array(); // Cannot proceed without a trigger ID
+		}
+
+		$potential_recipient_ids = $this->get_blog_member_ids( $blog_id );
+		if ( empty( $potential_recipient_ids ) ) {
+			return array(); // No users associated with this blog.
+		}
+
+		$term_ids             = \wp_get_post_terms( $post->ID, \get_object_taxonomies( $post_type ), array( 'fields' => 'ids' ) );
+		$term_ids_placeholder = ! empty( $term_ids ) ? implode( ',', array_fill( 0, count( $term_ids ), '%d' ) ) : 'NULL';
+
+		$user_ids_placeholder = implode( ',', array_fill( 0, count( $potential_recipient_ids ), '%d' ) );
+
+		// Prepare arguments for the query
+		$query_args = array_merge(
+			array( $blog_id, $post->ID, $trigger_id ), // for post settings
+			$potential_recipient_ids,           // for post settings user_id IN (...)
+			array( $blog_id, $trigger_id ),            // for term unmute settings
+			$potential_recipient_ids,           // for term unmute settings user_id IN (...)
+			! empty( $term_ids ) ? $term_ids : array(), // for term unmute settings term_id IN (...)
+			array( $blog_id, $trigger_id ),            // for term mute settings
+			$potential_recipient_ids,           // for term mute settings user_id IN (...)
+			! empty( $term_ids ) ? $term_ids : array(), // for term mute settings term_id IN (...)
+			array( $blog_id, $trigger_id ),            // for blog settings
+			$potential_recipient_ids,           // for blog settings user_id IN (...)
+			array( $trigger_id ),                      // for network settings
+			$potential_recipient_ids            // for network settings user_id IN (...)
+		);
+
+		// Query logic similar to posts, but includes the post-specific setting as highest priority.
+		// Table names are hardcoded as per config/database-tables.php
+		$sql = "
+            SELECT
+                u.ID as user_id,
+                COALESCE(
+                    post_comment.mute, -- Specificity 1: Post setting for comments
+                    term_unmute.mute,  -- Specificity 2a: Term unmute (unmute wins)
+                    term_mute.mute,    -- Specificity 2b: Term mute (if no unmute for any term)
+                    blog.mute,         -- Specificity 3: Blog setting
+                    network.mute       -- Specificity 4: Network setting
+                    -- Specificity 5 (Default) handled in PHP
+                ) as final_mute_state
+            FROM
+                {$this->wpdb->users} u
+            LEFT JOIN sn_scoped_settings_post_comments post_comment ON post_comment.user_id = u.ID
+                AND post_comment.blog_id = %d
+                AND post_comment.post_id = %d
+                AND post_comment.trigger_id = %d
+            LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0)
+                SELECT user_id, MIN(mute) as mute
+                FROM sn_scoped_settings_terms
+                WHERE blog_id = %d
+                AND trigger_id = %d
+                AND user_id IN ({$user_ids_placeholder})
+                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
+                GROUP BY user_id
+                HAVING MIN(mute) = 0
+            ) term_unmute ON term_unmute.user_id = u.ID
+            LEFT JOIN ( -- Find the mute status IF all relevant term settings are MUTE (1)
+                SELECT user_id, MAX(mute) as mute
+                FROM sn_scoped_settings_terms
+                WHERE blog_id = %d
+                AND trigger_id = %d
+                AND user_id IN ({$user_ids_placeholder})
+                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
+                GROUP BY user_id
+                HAVING MAX(mute) = 1
+            ) term_mute ON term_mute.user_id = u.ID AND term_unmute.user_id IS NULL
+            LEFT JOIN sn_scoped_settings_blogs blog ON blog.user_id = u.ID
+                AND blog.blog_id = %d
+                AND blog.trigger_id = %d
+            LEFT JOIN sn_scoped_settings_network_users network ON network.user_id = u.ID
+                AND network.trigger_id = %d
+            WHERE
+                u.ID IN ({$user_ids_placeholder})
+        ";
+
+		$prepared_sql = $this->wpdb->prepare( $sql, $query_args );
+		$results      = $this->wpdb->get_results( $prepared_sql );
+
+		// Check for DB errors before proceeding
+		if ( $results === null ) {
+			$this->logger->error(
+				'Database error occurred while fetching notification settings for comment.',
+				array(
+					'query'      => $this->wpdb->last_query,
+					'error'      => $this->wpdb->last_error,
+					'comment_id' => $comment->comment_ID,
+					'post_id'    => $post->ID,
+					'blog_id'    => $blog_id,
+					'trigger_id' => $trigger_id,
+				)
+			);
+			return array(); // Return empty on DB error
+		}
+
+		$recipient_ids = array();
+		foreach ( $results as $result ) {
+			$user_id          = (int) $result->user_id;
+			$final_mute_state = $result->final_mute_state; // Can be NULL, '0', or '1'
+
+			$is_muted = false; // Default based on rules (Specificity 5)
+			if ( $final_mute_state === null ) {
+				// No specific setting found at any level, use default
+				$is_muted = ! self::DEFAULT_NOTIFICATION_STATE;
+			} else {
+				// Explicit setting found
+				$is_muted = (bool) $final_mute_state; // '0' -> false (unmuted), '1' -> true (muted)
+			}
+
+			if ( ! $is_muted ) {
+				$recipient_ids[] = $user_id;
+			}
+		}
+
+		// Add mentioned users - they override mute settings.
+		$mentioned_user_ids  = $this->get_mentioned_user_ids( $comment->comment_content );
+		$final_recipient_ids = array_unique( array_merge( $recipient_ids, $mentioned_user_ids ) );
+
+		// TODO: Add logic for conversation participants? (e.g., author of parent post, other commenters)
+		// This might require separate checks or adding reasons to the queue.
+
+		return $final_recipient_ids;
+	}
+
+	/**
+	 * Extracts mentioned user IDs from content.
+	 * Looks for @username patterns.
+	 *
+	 * @param string $content The content to scan (post_content or comment_content).
+	 * @return array List of user IDs mentioned.
+	 */
+	private function get_mentioned_user_ids( string $content ): array {
+		$mentioned_ids = array();
+		// Simple regex for @username - adjust if needed for allowed characters
+		if ( \preg_match_all( '/@([a-zA-Z0-9_-]+)/', $content, $matches ) ) {
+			$logins = array_unique( $matches[1] );
+			foreach ( $logins as $login ) {
+				$user = \get_user_by( 'login', $login );
+				if ( $user ) {
+					$mentioned_ids[] = $user->ID;
+				} else {
+					// Maybe try by nicename as fallback?
+					$user = \get_user_by( 'slug', $login );
+					if ( $user ) {
+						$mentioned_ids[] = $user->ID;
+					}
+				}
+			}
+		}
+		return array_map( 'intval', array_unique( $mentioned_ids ) );
+	}
+
+	/**
+	 * Placeholder: Get the trigger ID for a given key and channel.
+	 * Needs implementation, likely querying the sn_triggers table.
+	 *
+	 * @param string $trigger_key The trigger key (e.g., 'post-post').
+	 * @param string $channel     The notification channel.
+	 * @return int|null Trigger ID or null if not found.
+	 */
+	private function get_trigger_id( string $trigger_key, string $channel ): ?int {
+		// Table names are hardcoded as per config/database-tables.php
+		$table_name = 'sn_triggers'; // Following pattern in this file
+
+		$sql = $this->wpdb->prepare(
+			"SELECT trigger_id FROM {$table_name} WHERE trigger_key = %s AND channel = %s",
+			$trigger_key,
+			$channel
+		);
+
+		$trigger_id = $this->wpdb->get_var( $sql );
+
+		if ( null === $trigger_id ) {
+			$this->logger->warning(
+				"Could not find trigger ID for key '{trigger_key}' and channel '{channel}' in table '{table_name}'.",
+				array(
+					'trigger_key' => $trigger_key,
+					'channel'     => $channel,
+					'table_name'  => $table_name,
+				)
+			);
+			return null;
+		}
+
+		return (int) $trigger_id;
+	}
+
+	/**
+	 * Placeholder: Get user IDs associated with a specific blog.
+	 * Needs implementation, likely using get_users() with blog_id filter.
+	 *
+	 * @param int $blog_id The blog ID.
+	 * @return array List of user IDs. Returns empty array if no users found or on error.
+	 */
+	private function get_blog_member_ids( int $blog_id ): array {
+		if ( ! \function_exists( 'get_users' ) ) {
+			$this->logger->error( 'get_users() function not available.' );
+			return array();
+		}
+
+		// Check if the blog exists and is not archived, deleted, or spammed.
+		$blog_details = \get_blog_details( $blog_id );
+		if ( ! $blog_details || $blog_details->archived || $blog_details->deleted || $blog_details->spam ) {
+			$this->logger->warning(
+				'Blog ID {blog_id} is invalid or not accessible.',
+				array( 'blog_id' => $blog_id )
+			);
+			return array();
+		}
+
+		$user_ids = \get_users(
+			array(
+				'blog_id' => $blog_id,
+				'fields'  => 'ID', // Only retrieve user IDs
+			)
+		);
+
+		if ( \is_wp_error( $user_ids ) ) {
+			/** @var \WP_Error $error_object */ // PHPDoc hint for linters
+			$error_object = $user_ids;
+			$this->logger->error(
+				'Error retrieving users for blog {blog_id}: {error_message}',
+				array(
+					'blog_id'       => $blog_id,
+					'error_message' => $error_object->get_error_message(),
+				)
+			);
+			return array();
+		}
+
+		// Ensure it's always an array of integers
+		return array_map( 'intval', $user_ids );
+	}
+
+} // End class Notification_Resolver
