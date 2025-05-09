@@ -10,7 +10,7 @@
 		}
 	],
 	"require": {
-		"dol-lab/custom-table-manager": "dev-main",
+		"dol-lab/custom-table-manager": "1.*",
 		"php": ">=8.1",
 		"psr/log": "^3.0"
 	},
