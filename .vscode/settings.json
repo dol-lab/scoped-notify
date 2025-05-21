@@ -41,7 +41,8 @@
 		"wpdb",
 		"xmlreader",
 		"xmlrpc",
-		"xmlwriter"
+		"xmlwriter",
+		"yoast"
 	],
 	"phpsab.executablePathCS": "./vendor/bin/phpcs",
 	"phpsab.executablePathCBF": "./vendor/bin/phpcbf",
