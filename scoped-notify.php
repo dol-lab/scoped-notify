@@ -29,7 +29,7 @@ if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	// Handle missing autoloader.
 	add_action(
 		'admin_notices',
-		function() {
+		function () {
 			$msg = esc_html__( 'Scoped Notify Error: Composer dependencies not found. Please run "composer install" in the plugin directory.', 'snotify' );
 			echo "<div class='notice notice-error'><p>$msg</p></div>";
 		}
@@ -89,7 +89,7 @@ function init() {
 		\WP_CLI::add_command( 'scoped-notify', __NAMESPACE__ . '\CLI_Command' );
 	}
 
-	 // Load text domain for localization.
+	// Load text domain for localization.
 	load_plugin_textdomain( 'snotify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
 }
 
@@ -126,7 +126,7 @@ function activate_plugin() {
 
 		$table_configs = require $config_file;
 		if ( empty( $table_configs ) || ! \is_array( $table_configs ) ) {
-			 throw new TableConfigurationException( 'Invalid or empty table configurations loaded.' );
+			throw new TableConfigurationException( 'Invalid or empty table configurations loaded.' );
 		}
 
 		$db_manager = new SchemaManager( $table_configs, $wpdb, $logger );

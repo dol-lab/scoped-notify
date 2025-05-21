@@ -108,7 +108,7 @@ class Notification_Processor {
 			$this->update_notification_status( $queue_id, $final_status, $success ); // Update status and sent_at if successful
 
 			if ( $success ) {
-				$processed_count++;
+				++$processed_count;
 			}
 			// Optional: Add retry logic for failed items later
 		}

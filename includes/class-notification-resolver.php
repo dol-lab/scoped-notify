@@ -11,10 +11,10 @@ namespace Scoped_Notify;
 defined( 'ABSPATH' ) || exit;
 
 // Use fully qualified names for WP classes
-use \WP_Post;
-use \WP_Comment;
-use \Psr\Log\LoggerInterface;
-use \Psr\Log\NullLogger;
+use WP_Post;
+use WP_Comment;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Determines notification recipients.
@@ -479,5 +479,4 @@ class Notification_Resolver {
 		// Ensure it's always an array of integers
 		return array_map( 'intval', $user_ids );
 	}
-
 } // End class Notification_Resolver
