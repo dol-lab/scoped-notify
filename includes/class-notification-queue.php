@@ -128,7 +128,7 @@ class Notification_Queue {
 			// Note: get_object handles blog switching internally now
 			$object = $this->get_object( $object_type, $object_id, $blog_id );
 			if ( ! $object ) {
-				 throw new \Exception( "Could not retrieve object {$object_type}:{$object_id} on blog {$blog_id}." );
+				throw new \Exception( "Could not retrieve object {$object_type}:{$object_id} on blog {$blog_id}." );
 			}
 
 			// 3. Resolve Recipients using the Notification_Resolver based on object type
@@ -206,7 +206,7 @@ class Notification_Queue {
 				$inserted = $this->insert_notification( $notification_data );
 
 				if ( $inserted ) {
-					$queued_count++;
+					++$queued_count;
 				} else {
 					// Log context already includes most of the data from notification_data
 					$this->logger->error(
@@ -382,7 +382,7 @@ class Notification_Queue {
 	public function handle_new_post( int $post_id, \WP_Post $post ) {
 		// Basic check: only queue for specific post types if needed, e.g., 'post'
 		// TODO: Make post types configurable
-		if ( $post->post_type !== 'post' || $post->post_status !== 'publish' ) {
+		if ( 'post' !== $post->post_type || 'publish' !== $post->post_status ) {
 			return;
 		}
 		// Avoid infinite loops if updates trigger saves
@@ -500,8 +500,8 @@ class Notification_Queue {
 
 		$total_queued = 0;
 		foreach ( $trigger_ids as $trigger_id ) {
-			$queued_count   = $this->queue_event_notifications( $object_type, $comment_id, $reason, $blog_id, array(), (int) $trigger_id );
-			 $total_queued += $queued_count;
+			$queued_count  = $this->queue_event_notifications( $object_type, $comment_id, $reason, $blog_id, array(), (int) $trigger_id );
+			$total_queued += $queued_count;
 		}
 		$this->logger->info(
 			"Finished queuing for '{$reason}' event.",
@@ -517,5 +517,4 @@ class Notification_Queue {
 		// TODO: Add logic for 'mention' reason if applicable
 		// $this->check_for_mentions_and_queue($comment, $blog_id);
 	}
-
 }

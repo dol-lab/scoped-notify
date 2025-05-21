@@ -87,7 +87,7 @@ class CLI_Command extends \WP_CLI_Command {
 			}
 
 			if ( $post_blog_id ) {
-				 $target_blog_id = $post_blog_id;
+				$target_blog_id = $post_blog_id;
 				if ( $target_blog_id !== $original_blog_id ) {
 					\switch_to_blog( $target_blog_id ); // Use global function
 					$switched_blog = true;
@@ -149,10 +149,10 @@ class CLI_Command extends \WP_CLI_Command {
 						if ( $queued_count > 0 ) {
 							\WP_CLI::success( "Successfully queued {$queued_count} notifications for Post ID {$post_id}, Channel '{$channel}', Reason '{$reason}' (Trigger ID: {$trigger_id})." ); // Use FQN
 						} elseif ( $queued_count === 0 ) {
-							 \WP_CLI::warning( "Event processed, but 0 notifications were queued (likely no recipients found). Post ID {$post_id}, Trigger ID: {$trigger_id}." ); // Use FQN
+							\WP_CLI::warning( "Event processed, but 0 notifications were queued (likely no recipients found). Post ID {$post_id}, Trigger ID: {$trigger_id}." ); // Use FQN
 						} else {
 							// queue_event_notifications returns int, so negative shouldn't happen, but check logs if it does.
-							 \WP_CLI::error( "Failed to queue notifications for Post ID {$post_id}. Check logs." ); // Use FQN
+							\WP_CLI::error( "Failed to queue notifications for Post ID {$post_id}. Check logs." ); // Use FQN
 						}
 					}
 				}
@@ -160,7 +160,7 @@ class CLI_Command extends \WP_CLI_Command {
 		} catch ( \Exception $e ) {
 			\WP_CLI::error( 'An error occurred: ' . $e->getMessage() ); // Use FQN
 		} finally {
-			 // Switch back if we switched blogs
+			// Switch back if we switched blogs
 			if ( $switched_blog && \function_exists( 'restore_current_blog' ) ) { // Use global function
 				\restore_current_blog(); // Use global function
 				\WP_CLI::log( "Restored original blog context (Blog ID: {$original_blog_id})." ); // Use FQN
@@ -216,11 +216,11 @@ class CLI_Command extends \WP_CLI_Command {
 
 		$post = \get_post( $comment->comment_post_ID ); // Use global function
 		if ( ! $post ) {
-			 \WP_CLI::error( "Parent post (ID: {$comment->comment_post_ID}) for comment ID {$comment_id} not found." ); // Use FQN
+			\WP_CLI::error( "Parent post (ID: {$comment->comment_post_ID}) for comment ID {$comment_id} not found." ); // Use FQN
 			return;
 		}
 
-		 // Determine the correct blog ID for the comment (via its post)
+		// Determine the correct blog ID for the comment (via its post)
 		$target_blog_id   = null;
 		$original_blog_id = null;
 		$switched_blog    = false;
@@ -279,7 +279,7 @@ class CLI_Command extends \WP_CLI_Command {
 					);
 
 					if ( empty( $trigger_id ) ) {
-						 \WP_CLI::error( "Could not find an active trigger for key '{$trigger_key}' and channel '{$channel}'. No notifications queued." ); // Use FQN
+						\WP_CLI::error( "Could not find an active trigger for key '{$trigger_key}' and channel '{$channel}'. No notifications queued." ); // Use FQN
 					} else {
 						// Queue the event using the new method
 						$queued_count = $queue_manager->queue_event_notifications(
@@ -304,7 +304,7 @@ class CLI_Command extends \WP_CLI_Command {
 		} catch ( \Exception $e ) {
 			\WP_CLI::error( 'An error occurred: ' . $e->getMessage() ); // Use FQN
 		} finally {
-			 // Switch back if we switched blogs
+			// Switch back if we switched blogs
 			if ( $switched_blog && \function_exists( 'restore_current_blog' ) ) { // Use global function
 				\restore_current_blog(); // Use global function
 				\WP_CLI::log( "Restored original blog context (Blog ID: {$original_blog_id})." ); // Use FQN
