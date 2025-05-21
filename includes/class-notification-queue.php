@@ -50,6 +50,7 @@ class Notification_Queue {
 
 	/**
 	 * Notification Scheduler instance.
+	 * This is used to determine the schedule for each user.
 	 * @var Notification_Scheduler
 	 */
 	private $scheduler; // Add scheduler property
