@@ -37,14 +37,6 @@ if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	return;
 }
 
-
-// CLI is included conditionally later.
-require_once SCOPED_NOTIFY_PLUGIN_DIR . 'includes/class-notification-resolver.php';
-require_once SCOPED_NOTIFY_PLUGIN_DIR . 'includes/class-notification-scheduler.php';
-require_once SCOPED_NOTIFY_PLUGIN_DIR . 'includes/class-notification-queue.php';
-require_once SCOPED_NOTIFY_PLUGIN_DIR . 'includes/class-notification-processor.php';
-require_once SCOPED_NOTIFY_PLUGIN_DIR . 'includes/class-logger-error-log.php';
-
 use DolLab\CustomTableManager\SchemaManager;
 use DolLab\CustomTableManager\TableOperationException;
 use DolLab\CustomTableManager\TableConfigurationException;
@@ -85,7 +77,6 @@ function init() {
 	// Register WP-CLI command if WP_CLI is defined.
 	// Note: WP_CLI constant is defined by WP-CLI itself.
 	if ( defined( '\WP_CLI' ) && \WP_CLI ) {
-		require_once SCOPED_NOTIFY_PLUGIN_DIR . 'includes/class-cli-command.php';
 		\WP_CLI::add_command( 'scoped-notify', __NAMESPACE__ . '\CLI_Command' );
 	}
 
