@@ -25,8 +25,8 @@ define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cr
 // Include Composer autoloader if it exists.
 if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	require_once SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php';
-} else {
-	// Handle missing autoloader.
+} elseif ( ! class_exists( 'Roots\Bedrock\Autoloader' ) ) {
+	// Handle missing autoloader if WordPress is not set up as bedrock installation.
 	add_action(
 		'admin_notices',
 		function () {
