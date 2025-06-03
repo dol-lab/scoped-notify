@@ -1,0 +1,66 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-06-13T13:03:58+00:00\n"
+"PO-Revision-Date: 2025-06-13T13:03:58+00:00\n"
+"Language: \n"
+
+#. Plugin Name of the plugin
+#: scoped-notify.php
+msgid "Scoped Notify"
+msgstr ""
+
+#. Author of the plugin
+#: scoped-notify.php
+msgid "DolLab & V3"
+msgstr ""
+
+#: scoped-notify.php:33
+msgid "Scoped Notify Error: Composer dependencies not found. Please run \"composer install\" in the plugin directory."
+msgstr ""
+
+#: scoped-notify.php:277
+msgid "Scoped Notify Error:"
+msgstr ""
+
+#: scoped-notify.php:338
+msgid "Every Five Minutes"
+msgstr ""
+
+#: src/Notification_Ui.php:49
+msgid "Notify Me"
+msgstr "Benachrichtigungen"
+
+#: src/Notification_Ui.php:108
+#: src/Notification_Ui.php:144
+msgid "Posts"
+msgstr "Posts"
+
+#: src/Notification_Ui.php:113
+#: src/Notification_Ui.php:149
+msgid "Posts and Comments"
+msgstr "Posts und Kommentare"
+
+#: src/Notification_Ui.php:118
+#: src/Notification_Ui.php:154
+#: src/Notification_Ui.php:183
+msgid "No Notifications"
+msgstr "Keine Benachrichtigungen"
+
+#: src/Notification_Ui.php:125
+msgid "Global notification settings"
+msgstr "Benachrichtigungen (global)"
+
+#: src/Notification_Ui.php:178
+msgid "Notifications for Comments"
+msgstr "Kommentar-Benachrichtigungen"
+
+#: src/Notification_Ui.php:188
+msgid "Use space default"
+msgstr "Default"

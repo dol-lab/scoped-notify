@@ -4,7 +4,7 @@
  * Version:           0.1
  * Author:            DolLab & V3
  * License:           GPL v2 or later
- * Text Domain:       snotify
+ * Text Domain:       scoped-notify
  * Domain Path:       /languages
  * Network:           True
  * Namespace:         Scoped_Notify
@@ -30,7 +30,7 @@ if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	add_action(
 		'admin_notices',
 		function () {
-			$msg = esc_html__( 'Scoped Notify Error: Composer dependencies not found. Please run "composer install" in the plugin directory.', 'snotify' );
+			$msg = esc_html__( 'Scoped Notify Error: Composer dependencies not found. Please run "composer install" in the plugin directory.', 'scoped-notify' );
 			echo "<div class='notice notice-error'><p>$msg</p></div>";
 		}
 	);
@@ -53,7 +53,9 @@ add_filter( 'cron_schedules', __NAMESPACE__ . '\add_cron_schedules' );
 
 // Hook the processing function to the scheduled event.
 add_action( SCOPED_NOTIFY_CRON_HOOK, __NAMESPACE__ . '\process_notification_queue_cron' );
-add_action( 'plugins_loaded', __NAMESPACE__ . '\init', 20 ); // Run after update check and cron schedule definition.
+add_action( 'plugins_loaded', __NAMESPACE__ . '\in_plugins_loaded', 20 ); // Run after update check and cron schedule definition.
+add_action( 'init', __NAMESPACE__ . '\init', 20 );
+add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\enqueue_script', 1 );
 
 // Trigger cron job processing after new post/comment handling. This is not async so user might have to wait.
 add_action( 'sn_after_handle_new_post', __NAMESPACE__ . '\process_notification_queue_cron' );
@@ -63,12 +65,13 @@ add_action( 'sn_after_handle_new_comment', __NAMESPACE__ . '\process_notificatio
 /**
  * Initialize the plugin. Load classes, add hooks.
  */
-function init() {
+function in_plugins_loaded() {
 	global $wpdb; // Make sure $wpdb is available.
 	$logger        = get_logger();
 	$resolver      = new Notification_Resolver( $wpdb, $logger );
 	$scheduler     = new Notification_Scheduler( $logger, $wpdb ); // Instantiate scheduler
 	$queue_manager = new Notification_Queue( $resolver, $scheduler, $logger, $wpdb ); // Pass scheduler
+
 
 	// Add hooks for triggering queue additions.
 	add_action( 'save_post', array( $queue_manager, 'handle_new_post' ), 10, 2 );
@@ -79,9 +82,69 @@ function init() {
 	if ( defined( '\WP_CLI' ) && \WP_CLI ) {
 		\WP_CLI::add_command( 'scoped-notify', __NAMESPACE__ . '\CLI_Command' );
 	}
+}
 
+function enqueue_script(){
+	// handle notifications for scoped-notify plugin
+	// wp_register_script( 'scoped-notify', 'http://localhost:8080/app/plugins/scoped-notify/js/scoped-notify.js', array( 'jquery' ), '', false );
+	// returns currently a 404
+	wp_register_script( 'scoped-notify', plugin_dir_url( __DIR__ ) . 'scoped-notify/js/scoped-notify.js', array( 'jquery' ), null, false );
+
+	// wp_register_script( 'scoped-notify', plugin_dir_url( '/js/scoped-notify.js', __FILE__ ), array( 'jquery' ), '', false );
+
+	wp_localize_script( 'scoped-notify', 'data', [
+		'rest' => [
+			// The rest_url function relies on the $wp_rewrite global class when pretty permalinks are enabled, which isn't available as early as the plugins_loaded action, but should instead be used with either the init or wp hook.
+			'endpoint' => esc_url_raw( rest_url( Rest_Api::NAMESPACE . Rest_Api::ROUTE_SETTINGS ) ),
+			'timeout'   => (int) apply_filters( "scoped_notify_rest_timeout", 60 ),
+			'nonce'     => wp_create_nonce( 'wp_rest' ),
+		],
+	] );
+
+	wp_enqueue_script( 'scoped-notify' );
+}
+
+function init() {
+	$logger = Logger::create();
+	$ui            = new Notification_Ui( $logger ); // Create html for notification
 	// Load text domain for localization.
-	load_plugin_textdomain( 'snotify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
+	load_plugin_textdomain( 'scoped-notify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
+
+	// register rest endpoint
+	/*
+	add_action(
+		'rest_api_init',
+		function () {
+			register_rest_route(
+				'scoped-notify/v1',
+				'/subscribe',
+				array(
+					'methods'             => \WP_REST_Server::EDITABLE,
+					'callback'            => __NAMESPACE__ . '\set_settings',
+					'permission_callback' => function () {
+						return is_user_logged_in();
+					},
+				),
+			);
+		}
+	);
+	*/
+
+	// add blog_settings to defaulttheme sidebar
+	add_filter( 'default_space_setting', 					array( $ui, 'add_blog_settings_item' ) );
+
+	// add comment_settings to dropdown in post card
+	add_filter( 'ds_post_dot_menu_data', 					array( $ui, 'add_comment_settings_item' ), 10, 2 );
+
+	// add network settings to drop down in the sidebar on the user's own profile page
+	add_filter( 'ds_child_member_profile_dot_menu_data',	array( $ui, 'add_network_settings_item' ), 8, 1 );
+
+	// this shortcode is used in a sidebar widget in shared_home blog, keeping the name from the previous plugin
+	// go to the dashboard of the shared_home blog, select appearance / widget.
+	// drag "text" widget to area "sidebar",
+	// choose a nice title like "Notify me!"
+	// and enter the shortcode [get_notification_toggle_switch] in the text field
+	add_shortcode( 'get_notification_toggle_switch', array( $ui, 'get_notification_toggle_switch' ) );
 }
 
 /**
@@ -211,7 +274,7 @@ function deactivate_plugin() {
 function display_admin_notices() {
 	if ( $error = \get_transient( 'scoped_notify_admin_error' ) ) {
 		echo '<div class="notice notice-error is-dismissible"><p>';
-		echo '<strong>' . esc_html__( 'Scoped Notify Error:', 'snotify' ) . '</strong> ' . \esc_html( $error );
+		echo '<strong>' . esc_html__( 'Scoped Notify Error:', 'scoped-notify' ) . '</strong> ' . \esc_html( $error );
 		echo '</p></div>';
 		\delete_transient( 'scoped_notify_admin_error' );
 	}
@@ -272,7 +335,7 @@ function add_cron_schedules( $schedules ) {
 	if ( ! isset( $schedules['every_five_minutes'] ) ) {
 		$schedules['every_five_minutes'] = array(
 			'interval' => 300, // 5 * 60 seconds
-			'display'  => \__( 'Every Five Minutes', 'snotify' ),
+			'display'  => \__( 'Every Five Minutes', 'scoped-notify' ),
 		);
 	}
 	return $schedules;

@@ -1,0 +1,69 @@
+# Copyright (C) 2025 DolLab & V3
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Scoped Notify 0.1\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/scoped-notify\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-06-13T13:02:05+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: scoped-notify\n"
+
+#. Plugin Name of the plugin
+#: scoped-notify.php
+msgid "Scoped Notify"
+msgstr ""
+
+#. Author of the plugin
+#: scoped-notify.php
+msgid "DolLab & V3"
+msgstr ""
+
+#: scoped-notify.php:33
+msgid "Scoped Notify Error: Composer dependencies not found. Please run \"composer install\" in the plugin directory."
+msgstr ""
+
+#: scoped-notify.php:277
+msgid "Scoped Notify Error:"
+msgstr ""
+
+#: scoped-notify.php:338
+msgid "Every Five Minutes"
+msgstr ""
+
+#: src/Notification_Ui.php:49
+msgid "Notify Me"
+msgstr ""
+
+#: src/Notification_Ui.php:108
+#: src/Notification_Ui.php:144
+msgid "Posts"
+msgstr ""
+
+#: src/Notification_Ui.php:113
+#: src/Notification_Ui.php:149
+msgid "Posts and Comments"
+msgstr ""
+
+#: src/Notification_Ui.php:118
+#: src/Notification_Ui.php:154
+#: src/Notification_Ui.php:183
+msgid "No Notifications"
+msgstr ""
+
+#: src/Notification_Ui.php:125
+msgid "Global notification settings"
+msgstr ""
+
+#: src/Notification_Ui.php:178
+msgid "Notifications for Comments"
+msgstr ""
+
+#: src/Notification_Ui.php:188
+msgid "Use space default"
+msgstr ""
