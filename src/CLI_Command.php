@@ -22,7 +22,7 @@ if ( ! defined( '\WP_CLI' ) || ! \WP_CLI ) { // Check global constant
 /**
  * Manages Scoped Notify notifications via WP-CLI.
  */
-class CLI_Command extends \WP_CLI_Command {
+class CLI_Command {
 	// Use fully qualified name
 
 	/**
@@ -54,12 +54,13 @@ class CLI_Command extends \WP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Resolve recipients for post 123, mail channel, reason 'manual_trigger' (dry run)
-	 *     wp scoped-notify resolve_post 123 --dry-run
+	 *     wp scoped-notify resolve-post 123 --dry-run
 	 *
 	 *     # Queue notifications for post 456, push channel, reason 'new_post'
-	 *     wp scoped-notify resolve_post 456 --channel=push --reason=new_post
+	 *     wp scoped-notify resolve-post 456 --channel=push --reason=new_post
 	 *
 	 * @when after_wp_load
+	 * @subcommand resolve-post
 	 */
 	public function resolve_post( $args, $assoc_args ) {
 		global $wpdb; // Make sure $wpdb is available
@@ -171,7 +172,7 @@ class CLI_Command extends \WP_CLI_Command {
 	/**
 	 * Test resolving recipients for a given comment and queues a notification trigger.
 	 *
-	 * Similar to resolve_post, this queues a trigger event. Recipients are resolved
+	 * Similar to resolve-post, this queues a trigger event. Recipients are resolved
 	 * again during queue processing.
 	 *
 	 * ## OPTIONS
@@ -196,10 +197,11 @@ class CLI_Command extends \WP_CLI_Command {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp scoped-notify resolve_comment 50 --dry-run
-	 *     wp scoped-notify resolve_comment 51 --reason=new_comment
+	 *     wp scoped-notify resolve-comment 50 --dry-run
+	 *     wp scoped-notify resolve-comment 51 --reason=new_comment
 	 *
 	 * @when after_wp_load
+	 * @subcommand resolve-comment
 	 */
 	public function resolve_comment( $args, $assoc_args ) {
 		list($comment_id) = $args;
@@ -326,12 +328,13 @@ class CLI_Command extends \WP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Process up to 20 items from the queue
-	 *     wp scoped-notify process_queue
+	 *     wp scoped-notify process-queue
 	 *
 	 *     # Process up to 100 items from the queue
-	 *     wp scoped-notify process_queue --limit=100
+	 *     wp scoped-notify process-queue --limit=100
 	 *
 	 * @when after_wp_load
+	 * @subcommand process-queue
 	 */
 	public function process_queue( $args, $assoc_args ) {
 		$limit = (int) ( $assoc_args['limit'] ?? 20 );
