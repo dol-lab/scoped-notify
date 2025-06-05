@@ -7,11 +7,16 @@
 	<exclude-pattern>/vendor/</exclude-pattern>
 	<exclude-pattern>/node_modules/</exclude-pattern>
 	<rule ref="Generic.Commenting.DocComment.MissingShort">
-        <severity>0</severity>		<!-- allow one-line comment for (types) class variables. -->
-    </rule>
+		<severity>0</severity>		<!-- allow one-line comment for (types) class variables. -->
+	</rule>
 	<rule ref="Squiz.Commenting.InlineComment.InvalidEndChar">
-        <severity>0</severity>		<!-- allow inline comments without ending ".".-->
-    </rule>
+		<severity>0</severity>		<!-- allow inline comments without ending ".".-->
+	</rule>
+
+	<!-- use psr-4 compatible class names -->
+	<rule ref="WordPress.Files.FileName.InvalidClassFileName">
+		<severity>0</severity>
+	</rule>
 
 	<!-- How to scan -->
 	<!-- Usage instructions: https://github.com/squizlabs/PHP_CodeSniffer/wiki/Usage -->

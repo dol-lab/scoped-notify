@@ -30,8 +30,8 @@
 		}
 	},
 	"autoload": {
-		"classmap": [
-			"includes/"
-		]
+		"psr-4": {
+			"Scoped_Notify\\": "src/"
+		}
 	}
 }
