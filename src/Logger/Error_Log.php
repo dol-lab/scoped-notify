@@ -1,5 +1,5 @@
 <?php
-namespace Scoped_Notify;
+namespace Scoped_Notify\Logger;
 
 use Psr\Log\LogLevel;
 use Psr\Log\AbstractLogger;
@@ -9,7 +9,7 @@ use Psr\Log\AbstractLogger;
  *
  * Only logs messages with a level of ERROR or higher by default.
  */
-class Logger_Error_Log extends AbstractLogger {
+class Error_Log extends AbstractLogger {
 
 	/**
 	 * The minimum log level to record.

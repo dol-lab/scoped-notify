@@ -40,7 +40,6 @@ if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 use DolLab\CustomTableManager\SchemaManager;
 use DolLab\CustomTableManager\TableOperationException;
 use DolLab\CustomTableManager\TableConfigurationException;
-use Psr\Log\LoggerInterface;
 
 register_activation_hook( SCOPED_NOTIFY_PLUGIN_FILE, __NAMESPACE__ . '\activate_plugin' );
 register_deactivation_hook( SCOPED_NOTIFY_PLUGIN_FILE, __NAMESPACE__ . '\deactivate_plugin' );
@@ -67,7 +66,7 @@ add_action( 'sn_after_handle_new_comment', __NAMESPACE__ . '\process_notificatio
  */
 function in_plugins_loaded() {
 	global $wpdb; // Make sure $wpdb is available.
-	$logger        = get_logger();
+	$logger        = Logger::create();
 	$resolver      = new Notification_Resolver( $wpdb, $logger );
 	$scheduler     = new Notification_Scheduler( $logger, $wpdb ); // Instantiate scheduler
 	$queue_manager = new Notification_Queue( $resolver, $scheduler, $logger, $wpdb ); // Pass scheduler
@@ -148,22 +147,12 @@ function init() {
 }
 
 /**
- * Replace with a real logger.
- */
-function get_logger(): LoggerInterface {
-	$logger = new Logger_Error_Log();
-	// Note: WP_DEBUG constant is defined in wp-config.php.
-	$logger->set_log_level( defined( '\WP_DEBUG' ) && \WP_DEBUG ? 'debug' : 'error' ); // Set log level based on WP_DEBUG.
-	return $logger;
-}
-
-/**
  * Plugin Activation Hook.
  * Installs or verifies database tables and schedules cron.
  */
 function activate_plugin() {
 	global $wpdb;
-	$logger = get_logger();
+	$logger = Logger::create();
 
 	// --- Database Setup ---
 	if ( ! class_exists( SchemaManager::class ) ) {
@@ -251,7 +240,7 @@ function activate_plugin() {
  * Unschedules the cron job.
  */
 function deactivate_plugin() {
-	$logger = get_logger();
+	$logger = Logger::create();
 	$is_dev = in_array( wp_get_environment_type(), array( 'development', 'local' ), true );
 
 	if ( $is_dev ) {
@@ -286,7 +275,7 @@ function display_admin_notices() {
  */
 function check_for_updates() {
 	global $wpdb;
-	$logger               = get_logger();
+	$logger               = Logger::create();
 	$installed_db_version = \get_site_option( SCOPED_NOTIFY_DB_VERSION_OPTION, '0.0.0' );
 
 	if ( \version_compare( $installed_db_version, SCOPED_NOTIFY_VERSION, '<' ) ) {
@@ -347,7 +336,7 @@ function add_cron_schedules( $schedules ) {
  */
 function uninstall_plugin() {
 	global $wpdb;
-	$logger = get_logger();
+	$logger = Logger::create();
 	$is_dev = in_array( wp_get_environment_type(), array( 'development', 'local' ), true );
 	// Make sure to not loose user-settings on production.
 	if ( \get_site_option( 'scoped_notify_preserve_data', true ) && ! $is_dev ) {
@@ -383,7 +372,7 @@ function uninstall_plugin() {
  * @todo: Get all immediate users for the same post and process them in one go.
  */
 function process_notification_queue_cron() {
-	$logger = get_logger();
+	$logger = Logger::create();
 	$logger->info( 'Cron job started: ' . SCOPED_NOTIFY_CRON_HOOK );
 
 	// Need to instantiate dependencies here as cron runs in a separate request context.

@@ -107,7 +107,7 @@ class CLI_Command {
 		try {
 			// Instantiate dependencies (needed within the command context)
 			global $wpdb; // Make sure $wpdb is available
-			$logger        = get_logger(); // Assuming get_logger() is available globally or in this namespace
+			$logger        = Logger::create();
 			$resolver      = new Notification_Resolver( $wpdb, $logger );
 			$scheduler     = new Notification_Scheduler( $logger, $wpdb ); // Instantiate scheduler
 			$queue_manager = new Notification_Queue( $resolver, $scheduler, $logger, $wpdb ); // Pass scheduler
@@ -253,7 +253,7 @@ class CLI_Command {
 		try {
 			// Instantiate dependencies
 			global $wpdb; // Make sure $wpdb is available
-			$logger        = get_logger();
+			$logger        = Logger::create();
 			$resolver      = new Notification_Resolver( $wpdb, $logger );
 			$scheduler     = new Notification_Scheduler( $logger, $wpdb ); // Instantiate scheduler
 			$queue_manager = new Notification_Queue( $resolver, $scheduler, $logger, $wpdb ); // Pass scheduler
@@ -348,7 +348,7 @@ class CLI_Command {
 		try {
 			// Instantiate dependencies
 			global $wpdb; // Make sure $wpdb is available
-			$logger = get_logger(); // Use the same logger as the main plugin if possible
+			$logger = Logger::create();
 			// TODO: Get table name from config
 			$notifications_table = 'sn_queue';
 			$processor           = new Notification_Processor( $logger, $wpdb, $notifications_table );
