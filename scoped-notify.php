@@ -60,6 +60,8 @@ add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\enqueue_script', 1 );
 add_action( 'sn_after_handle_new_post', __NAMESPACE__ . '\process_notification_queue_cron' );
 add_action( 'sn_after_handle_new_comment', __NAMESPACE__ . '\process_notification_queue_cron' );
 
+// register rest endpoint
+add_action( 'rest_api_init', Rest_Api::register_routes( ... ) );
 
 /**
  * Initialize the plugin. Load classes, add hooks.
@@ -95,7 +97,7 @@ function enqueue_script(){
 		'rest' => [
 			// The rest_url function relies on the $wp_rewrite global class when pretty permalinks are enabled, which isn't available as early as the plugins_loaded action, but should instead be used with either the init or wp hook.
 			'endpoint' => esc_url_raw( rest_url( Rest_Api::NAMESPACE . Rest_Api::ROUTE_SETTINGS ) ),
-			'timeout'   => (int) apply_filters( "scoped_notify_rest_timeout", 60 ),
+			'timeout'   => (int) apply_filters( "scoped_notify_rest_timeout", 3000 ),
 			'nonce'     => wp_create_nonce( 'wp_rest' ),
 		],
 	] );

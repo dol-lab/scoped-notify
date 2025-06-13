@@ -418,7 +418,8 @@ class Notification_Processor {
 
 		$subject = '';
 		try {
-			$blog_name = \get_bloginfo( 'name' );
+			// prevent html entities showing up in the mail subject like [Everybody&#039;s home]
+			$blog_name = html_entity_decode(\get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8');
 
 			if ( $object instanceof \WP_Post ) {
 				switch ( $item->reason ) {
