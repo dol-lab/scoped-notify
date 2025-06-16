@@ -36,9 +36,7 @@ class Rest_Api {
 	private static function set_user_preferences( \WP_REST_Request $request ): WP_REST_Response {
 		$logger = self::logger();
 
-		$logger->debug( 'params', array( 'params' => $request->get_params() ) );
-
-		// TODO check if all required parameters exist
+		// $logger->debug( 'params', array( 'params' => $request->get_params() ) );
 
 		// check if given scope exists
 		$scope  = Scope::tryFrom( $request['scope'] );
@@ -46,7 +44,7 @@ class Rest_Api {
 			$logger->warning("scope ".urlencode($request['scope'])." does not exist");
 			return self::return_error();
 		}
-		$logger->debug("scope: ".$scope->value);
+		//$logger->debug("scope: ".$scope->value);
 
 		$fields = array(
 			'user_id' => wp_get_current_user()->ID,
@@ -75,7 +73,7 @@ class Rest_Api {
 			// check if given preference exists
 			// different scopes have different sets of valid preferences
 			if ( ( 'post' === $scope->value ) && ( 'yes-notifications' === $request['value'] ) ) {
-				$logger->debug("setting yes-notifications for post to posts_and_comments");
+				// $logger->debug("setting yes-notifications for post to posts_and_comments");
 				$preference = Notification_Preference::Posts_And_Comments;
 			}
 			else {
@@ -92,7 +90,7 @@ class Rest_Api {
 				'fields' => $fields,
 			);
 
-			$logger->debug( 'args', array( 'args' => $args ) );
+			// $logger->debug( 'args', array( 'args' => $args ) );
 
 			$res = User_Preferences::set( ...$args );
 		}

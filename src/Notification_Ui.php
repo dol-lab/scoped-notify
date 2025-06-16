@@ -13,28 +13,18 @@ defined( 'ABSPATH' ) || exit;
 // Use fully qualified names for WP classes
 use WP_Post;
 use WP_Comment;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 /**
  * provides html radiogroups for network, blog and comment settings
  */
 class Notification_Ui {
-
-	/**
-	 * Logger instance.
-	 *
-	 * @var LoggerInterface
-	 */
-	private $logger;
+	use Static_Logger_Trait;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param LoggerInterface|null $logger Logger instance. Defaults to NullLogger if not provided.
 	 */
-	public function __construct( ?LoggerInterface $logger = null ) {
-		$this->logger = $logger ?? new NullLogger();
+	public function __construct(  ) {
 		// $logger->info( '**** Scoped_Notify_Ui ****' );
 	}
 

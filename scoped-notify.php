@@ -69,9 +69,9 @@ add_action( 'rest_api_init', Rest_Api::register_routes( ... ) );
 function in_plugins_loaded() {
 	global $wpdb; // Make sure $wpdb is available.
 	$logger        = Logger::create();
-	$resolver      = new Notification_Resolver( $wpdb, $logger );
-	$scheduler     = new Notification_Scheduler( $logger, $wpdb ); // Instantiate scheduler
-	$queue_manager = new Notification_Queue( $resolver, $scheduler, $logger, $wpdb ); // Pass scheduler
+	$resolver      = new Notification_Resolver( $wpdb );
+	$scheduler     = new Notification_Scheduler( $wpdb ); // Instantiate scheduler
+	$queue_manager = new Notification_Queue( $resolver, $scheduler, $wpdb ); // Pass scheduler
 
 
 	// Add hooks for triggering queue additions.
@@ -89,7 +89,7 @@ function in_plugins_loaded() {
 
 function init() {
 	$logger	= Logger::create();
-	$ui		= new Notification_Ui( $logger ); // Create html for notification
+	$ui		= new Notification_Ui( ); // Create html for notification
 	// Load text domain for localization.
 	load_plugin_textdomain( 'scoped-notify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
 
@@ -358,7 +358,7 @@ function process_notification_queue_cron() {
 	global $wpdb; // Make sure $wpdb is available.
 	// TODO: Get table name from config - Using 'sn_queue' as defined in config/database-tables.php
 	$notifications_table = 'sn_queue';
-	$processor           = new Notification_Processor( $logger, $wpdb, $notifications_table );
+	$processor           = new Notification_Processor( $wpdb, $notifications_table );
 
 	try {
 		// Process a limited number of items per run.

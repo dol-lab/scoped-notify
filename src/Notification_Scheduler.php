@@ -18,18 +18,13 @@ use DateTimeZone;
  * Manages user notification schedules and calculates send times.
  */
 class Notification_Scheduler {
+	use Static_Logger_Trait;
 
 	/**
 	 * Default schedule type if none is found for a user.
 	 * @var string
 	 */
 	const DEFAULT_SCHEDULE_TYPE = 'immediate';
-
-	/**
-	 * Logger instance.
-	 * @var LoggerInterface
-	 */
-	private $logger;
 
 	/**
 	 * WordPress database object.
@@ -40,11 +35,9 @@ class Notification_Scheduler {
 	/**
 	 * Constructor.
 	 *
-	 * @param LoggerInterface $logger The logger instance.
 	 * @param \wpdb           $wpdb   WordPress database instance.
 	 */
-	public function __construct( LoggerInterface $logger, \wpdb $wpdb ) {
-		$this->logger = $logger;
+	public function __construct( \wpdb $wpdb ) {
 		$this->wpdb   = $wpdb;
 	}
 
@@ -58,6 +51,8 @@ class Notification_Scheduler {
 	 * @return string Schedule type ('immediate', 'daily', 'weekly') or default.
 	 */
 	public function get_user_schedule( int $user_id, int $blog_id, string $channel ): string {
+		$logger = self::logger();
+
 		// Ensure we are on the correct blog to query user meta if needed later,
 		// although the schedule table itself includes blog_id.
 		$original_blog_id = null;
@@ -87,7 +82,7 @@ class Notification_Scheduler {
 			if ( ! empty( $db_schedule ) ) {
 				// TODO: Validate schedule type against allowed values?
 				$schedule = $db_schedule;
-				$this->logger->debug(
+				$logger->debug(
 					"Found schedule '{$schedule}' for user {$user_id}, blog {$blog_id}, channel '{$channel}'.",
 					array(
 						'user_id'  => $user_id,
@@ -97,7 +92,7 @@ class Notification_Scheduler {
 					)
 				);
 			} else {
-				$this->logger->debug(
+				$logger->debug(
 					"No specific schedule found for user {$user_id}, blog {$blog_id}, channel '{$channel}'. Using default.",
 					array(
 						'user_id' => $user_id,
@@ -124,6 +119,8 @@ class Notification_Scheduler {
 	 * @return string|null MySQL datetime string (UTC) for scheduled send, or null for immediate.
 	 */
 	public function calculate_scheduled_send_time( string $schedule_type ): ?string {
+		$logger = self::logger();
+
 		if ( $schedule_type === 'immediate' ) {
 			return null; // Send immediately
 		}
@@ -142,7 +139,7 @@ class Notification_Scheduler {
 			try {
 				$wp_timezone = new DateTimeZone( $offset_string );
 			} catch ( \Exception $e ) {
-				$this->logger->error( "Invalid timezone offset calculated: {$offset_string}. Falling back to UTC.", array( 'gmt_offset' => $gmt_offset ) );
+				$logger->error( "Invalid timezone offset calculated: {$offset_string}. Falling back to UTC.", array( 'gmt_offset' => $gmt_offset ) );
 				$wp_timezone = new DateTimeZone( 'UTC' ); // Fallback to UTC
 			}
 		}
@@ -179,7 +176,7 @@ class Notification_Scheduler {
 				// it should be correct. If it resulted in a past date (shouldn't happen with 'next'), add a week.
 				if ( $scheduled_time_local <= $now ) {
 					// This might happen if 'next Monday' is today but time is past, handled above, but as safeguard:
-					$this->logger->debug(
+					$logger->debug(
 						'Weekly schedule calculation resulted in past/present time, adjusting to next week.',
 						array(
 							'now'        => $now->format( DateTime::ATOM ),
@@ -189,7 +186,7 @@ class Notification_Scheduler {
 					$scheduled_time_local->modify( '+1 week' );
 				}
 			} else {
-				$this->logger->warning( "Unsupported schedule type '{$schedule_type}' encountered during send time calculation." );
+				$logger->warning( "Unsupported schedule type '{$schedule_type}' encountered during send time calculation." );
 				return null; // Treat unsupported as immediate for now
 			}
 
@@ -198,7 +195,7 @@ class Notification_Scheduler {
 			$scheduled_time_utc->setTimezone( new DateTimeZone( 'UTC' ) );
 			$mysql_utc_time = $scheduled_time_utc->format( 'Y-m-d H:i:s' );
 
-			$this->logger->debug(
+			$logger->debug(
 				'Calculated scheduled send time.',
 				array(
 					'schedule_type'         => $schedule_type,
@@ -211,7 +208,7 @@ class Notification_Scheduler {
 
 			return $mysql_utc_time;
 		} catch ( \Exception $e ) {
-			$this->logger->error(
+			$logger->error(
 				'Error calculating scheduled send time: ' . $e->getMessage(),
 				array(
 					'schedule_type' => $schedule_type,

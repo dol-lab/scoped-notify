@@ -13,13 +13,12 @@ defined( 'ABSPATH' ) || exit;
 // Use fully qualified names for WP classes
 use WP_Post;
 use WP_Comment;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 /**
  * Determines notification recipients.
  */
 class Notification_Resolver {
+	use Static_Logger_Trait;
 
 	/**
 	 * Default notification state. True means receive notifications unless explicitly muted.
@@ -36,21 +35,12 @@ class Notification_Resolver {
 	private $wpdb;
 
 	/**
-	 * Logger instance.
-	 *
-	 * @var LoggerInterface
-	 */
-	private $logger;
-
-	/**
 	 * Constructor.
 	 *
 	 * @param \wpdb                $wpdb   WordPress database object.
-	 * @param LoggerInterface|null $logger Logger instance. Defaults to NullLogger if not provided.
 	 */
-	public function __construct( \wpdb $wpdb, ?LoggerInterface $logger = null ) {
+	public function __construct( \wpdb $wpdb ) {
 		$this->wpdb   = $wpdb;
-		$this->logger = $logger ?? new NullLogger();
 	}
 
 	/**
@@ -61,13 +51,15 @@ class Notification_Resolver {
 	 * @return array List of user IDs. Returns empty array on error (e.g., invalid post type).
 	 */
 	public function get_recipients_for_post( WP_Post $post, string $channel = 'mail' ): array {
+		$logger = self::logger();
+
 		$blog_id     = \get_current_blog_id(); // Assuming the action runs within the blog context.
 		$post_type   = $post->post_type;
 		$trigger_key = 'post-' . $post_type;
 		$trigger_id  = $this->get_trigger_id( $trigger_key, $channel );
 
 		if ( ! $trigger_id ) {
-			$this->logger->error(
+			$logger->error(
 				"Could not resolve trigger ID for post type '{post_type}' on blog {blog_id}.",
 				array(
 					'post_type' => $post_type,
@@ -79,13 +71,17 @@ class Notification_Resolver {
 
 		$potential_recipient_ids = $this->get_blog_member_ids( $blog_id );
 		if ( empty( $potential_recipient_ids ) ) {
+			$logger->info("no user associated with blog with id " . $blog_id);
 			return array(); // No users associated with this blog.
 		}
 
-		$term_ids             = \wp_get_post_terms( $post->ID, \get_object_taxonomies( $post_type ), array( 'fields' => 'ids' ) );
+		$object_taxonomies		= \get_object_taxonomies( $post_type );
+		$term_ids             = \wp_get_post_terms( $post->ID, $object_taxonomies, array( 'fields' => 'ids' ) );
 		$term_ids_placeholder = ! empty( $term_ids ) ? implode( ',', array_fill( 0, count( $term_ids ), '%d' ) ) : 'NULL';
 
 		$user_ids_placeholder = implode( ',', array_fill( 0, count( $potential_recipient_ids ), '%d' ) );
+
+		// $logger->debug("potential_recipients: ".implode(",",$potential_recipient_ids));
 
 		// Prepare arguments for the query
 		$query_args = array_merge(
@@ -109,6 +105,7 @@ class Notification_Resolver {
                     network.mute       -- Specificity 4: Network setting
                     -- Specificity 5 (Default) handled in PHP
                 ) as final_mute_state
+
             FROM
                 {$this->wpdb->users} u
 
@@ -118,7 +115,7 @@ class Notification_Resolver {
                 FROM sn_scoped_settings_terms
                 WHERE blog_id = %d
                 AND trigger_id = %d
-                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
+                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : ' AND 1=0 ' ) . "
                 GROUP BY user_id
             ) term ON term.user_id = u.ID
 
@@ -133,15 +130,15 @@ class Notification_Resolver {
 
             WHERE
                 u.ID IN ({$user_ids_placeholder})
-
         ";
 
 		// Prepare the SQL statement
 		$prepared_sql = $this->wpdb->prepare( $sql, $query_args );
 
 		// Check if prepare failed (returned empty string or false)
+
 		if ( empty( $prepared_sql ) ) {
-			$this->logger->error(
+			$logger->error(
 				'wpdb::prepare failed to prepare the SQL query for get_recipients_for_post.',
 				array(
 					'last_error' => $this->wpdb->last_error,
@@ -161,7 +158,7 @@ class Notification_Resolver {
 
 		// Check for DB errors before proceeding
 		if ( $results === null ) {
-			$this->logger->error(
+			$logger->error(
 				'Database error occurred while fetching notification settings for post.',
 				array(
 					'query'      => $this->wpdb->last_query,
@@ -208,15 +205,19 @@ class Notification_Resolver {
 	 * @return array List of user IDs. Returns empty array on error.
 	 */
 	public function get_recipients_for_comment( WP_Comment $comment, string $channel = 'mail' ): array {
+		$logger = self::logger();
+
 		$blog_id = \get_current_blog_id(); // Assuming the action runs within the blog context.
 		$post    = \get_post( $comment->comment_post_ID );
 		if ( ! $post ) {
-			$this->logger->error(
+			$logger->error(
 				'Could not find parent post for comment ID {comment_id}.',
 				array( 'comment_id' => $comment->comment_ID )
 			);
 			return array();
 		}
+
+		$logger->debug("fetching recipients for blog " . $blog_id . " and post " . $comment->comment_post_ID);
 
 		$post_type = $post->post_type;
 		// Comment trigger key includes the PARENT post type
@@ -224,7 +225,7 @@ class Notification_Resolver {
 		$trigger_id  = $this->get_trigger_id( $trigger_key, $channel );
 
 		if ( ! $trigger_id ) {
-			$this->logger->error(
+			$logger->error(
 				"Could not resolve trigger ID for comment on post type '{post_type}' (Post ID {post_id}) on blog {blog_id}.",
 				array(
 					'post_type' => $post_type,
@@ -237,6 +238,7 @@ class Notification_Resolver {
 
 		$potential_recipient_ids = $this->get_blog_member_ids( $blog_id );
 		if ( empty( $potential_recipient_ids ) ) {
+			$logger->info("no user associated with blog with id " . $blog_id);
 			return array(); // No users associated with this blog.
 		}
 
@@ -308,7 +310,7 @@ class Notification_Resolver {
 
 		// Check for DB errors before proceeding
 		if ( $results === null ) {
-			$this->logger->error(
+			$logger->error(
 				'Database error occurred while fetching notification settings for comment.',
 				array(
 					'query'      => $this->wpdb->last_query,
@@ -388,6 +390,8 @@ class Notification_Resolver {
 	 * @return int|null Trigger ID or null if not found.
 	 */
 	private function get_trigger_id( string $trigger_key, string $channel ): ?int {
+		$logger = self::logger();
+
 		// Table names are hardcoded as per config/database-tables.php
 		$table_name = 'sn_triggers'; // Following pattern in this file
 
@@ -400,7 +404,7 @@ class Notification_Resolver {
 		$trigger_id = $this->wpdb->get_var( $sql );
 
 		if ( null === $trigger_id ) {
-			$this->logger->warning(
+			$logger->warning(
 				"Could not find trigger ID for key '{trigger_key}' and channel '{channel}' in table '{table_name}'.",
 				array(
 					'trigger_key' => $trigger_key,
@@ -422,15 +426,17 @@ class Notification_Resolver {
 	 * @return array List of user IDs. Returns empty array if no users found or on error.
 	 */
 	private function get_blog_member_ids( int $blog_id ): array {
+		$logger = self::logger();
+
 		if ( ! \function_exists( 'get_users' ) ) {
-			$this->logger->error( 'get_users() function not available.' );
+			$logger->error( 'get_users() function not available.' );
 			return array();
 		}
 
 		// Check if the blog exists and is not archived, deleted, or spammed.
 		$blog_details = \get_blog_details( $blog_id );
 		if ( ! $blog_details || $blog_details->archived || $blog_details->deleted || $blog_details->spam ) {
-			$this->logger->warning(
+			$logger->warning(
 				'Blog ID {blog_id} is invalid or not accessible.',
 				array( 'blog_id' => $blog_id )
 			);
@@ -447,7 +453,7 @@ class Notification_Resolver {
 		if ( \is_wp_error( $user_ids ) ) {
 			/** @var \WP_Error $error_object */ // PHPDoc hint for linters
 			$error_object = $user_ids;
-			$this->logger->error(
+			$logger->error(
 				'Error retrieving users for blog {blog_id}: {error_message}',
 				array(
 					'blog_id'       => $blog_id,

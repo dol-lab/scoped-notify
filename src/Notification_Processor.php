@@ -10,24 +10,17 @@ namespace Scoped_Notify;
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
-use Psr\Log\LoggerInterface;
-
 /**
  * Processes notifications stored in the database queue.
  */
 class Notification_Processor {
+	use Static_Logger_Trait;
 
 	/**
 	 * Database table name for individual notifications.
 	 * @var string
 	 */
 	private $notifications_table_name;
-
-	/**
-	 * Logger instance.
-	 * @var LoggerInterface
-	 */
-	private $logger;
 
 	/**
 	 * WordPress database object.
@@ -38,12 +31,10 @@ class Notification_Processor {
 	/**
 	 * Constructor.
 	 *
-	 * @param LoggerInterface $logger    The logger instance.
 	 * @param \wpdb           $wpdb      WordPress database instance.
 	 * @param string          $table_name The name of the notifications DB table.
 	 */
-	public function __construct( LoggerInterface $logger, \wpdb $wpdb, string $table_name ) {
-		$this->logger                   = $logger;
+	public function __construct( \wpdb $wpdb, string $table_name ) {
 		$this->wpdb                     = $wpdb;
 		$this->notifications_table_name = $table_name;
 	}
@@ -58,6 +49,8 @@ class Notification_Processor {
 	 * @return int Number of notifications successfully processed (or attempted).
 	 */
 	public function process_queue( int $limit = 10 ): int {
+		$logger = self::logger();
+
 		$processed_count = 0;
 		$now_utc         = gmdate( 'Y-m-d H:i:s' ); // Get current UTC time in MySQL format
 
@@ -77,27 +70,27 @@ class Notification_Processor {
 		);
 
 		if ( empty( $items ) ) {
-			$this->logger->debug( 'No pending notifications due for processing.', array( 'time_utc' => $now_utc ) );
+			$logger->debug( 'No pending notifications due for processing.', array( 'time_utc' => $now_utc ) );
 			return 0;
 		}
 
-		$this->logger->info( "Processing up to {$limit} due notifications. Found " . \count( $items ) . ' pending and due.', array( 'time_utc' => $now_utc ) );
+		$logger->info( "Processing up to {$limit} due notifications. Found " . \count( $items ) . ' pending and due.', array( 'time_utc' => $now_utc ) );
 
 		foreach ( $items as $item ) {
 			// Ensure the item queue_id is a valid integer before proceeding
 			if ( ! isset( $item->queue_id ) || ! filter_var( $item->queue_id, FILTER_VALIDATE_INT ) || $item->queue_id <= 0 ) {
-				$this->logger->error( 'Invalid or missing notification queue_id found in queue item. Skipping.', array( 'item_data' => $item ) );
+				$logger->error( 'Invalid or missing notification queue_id found in queue item. Skipping.', array( 'item_data' => $item ) );
 				continue;
 			}
 			// Cast to int after validation
 			$queue_id = (int) $item->queue_id;
 
-			$this->logger->debug( "Processing notification queue_id: {$queue_id} for user {$item->user_id}" );
+			$logger->debug( "Processing notification queue_id: {$queue_id} for user {$item->user_id}" );
 
 			// Mark as processing to prevent race conditions if run concurrently
 			$updated = $this->update_notification_status( $queue_id, 'processing', false ); // Mark as processing, don't update sent_at yet
 			if ( ! $updated ) {
-				$this->logger->warning( "Failed to mark notification queue_id: {$queue_id} as 'processing'. Skipping." );
+				$logger->warning( "Failed to mark notification queue_id: {$queue_id} as 'processing'. Skipping." );
 				continue;
 			}
 
@@ -113,7 +106,7 @@ class Notification_Processor {
 			// Optional: Add retry logic for failed items later
 		}
 
-		$this->logger->info( "Finished processing batch. Successfully processed {$processed_count} notifications." );
+		$logger->info( "Finished processing batch. Successfully processed {$processed_count} notifications." );
 		return $processed_count;
 	}
 
@@ -124,6 +117,8 @@ class Notification_Processor {
 	 * @return string|null The channel name or null if not found.
 	 */
 	private function get_channel_for_trigger( int $trigger_id ): ?string {
+		$logger = self::logger();
+
 		// Assuming 'sn_triggers' is the correct table name.
 		// You might want to pass this table name via the constructor like the notifications table.
 		$triggers_table = 'sn_triggers'; // TODO: Consider making this configurable
@@ -135,7 +130,7 @@ class Notification_Processor {
 		);
 
 		if ( null === $channel ) {
-			$this->logger->error( "Could not find channel for trigger_id {$trigger_id}." );
+			$logger->error( "Could not find channel for trigger_id {$trigger_id}." );
 			return null;
 		}
 
@@ -150,6 +145,8 @@ class Notification_Processor {
 	 * @return bool True on success, false on failure.
 	 */
 	private function process_single_notification( \stdClass $item ): bool {
+		$logger = self::logger();
+
 		// Switch to the correct blog context if in multisite
 		$original_blog_id = null;
 		$switched_blog    = false;
@@ -159,7 +156,7 @@ class Notification_Processor {
 				\switch_to_blog( $item->blog_id );
 				$switched_blog = true;
 				// Use queue_id for logging consistency
-				$this->logger->debug( "Switched to blog ID {$item->blog_id} for processing notification queue_id {$item->queue_id}." );
+				$logger->debug( "Switched to blog ID {$item->blog_id} for processing notification queue_id {$item->queue_id}." );
 			}
 		}
 
@@ -187,7 +184,7 @@ class Notification_Processor {
 				// Mark as failed because we don't know the channel
 				throw new \Exception( "Channel could not be determined for trigger_id {$item->trigger_id}." );
 			}
-			$this->logger->debug( "Determined channel '{$channel}' for notification queue_id {$item->queue_id} via trigger_id {$item->trigger_id}." );
+			$logger->debug( "Determined channel '{$channel}' for notification queue_id {$item->queue_id} via trigger_id {$item->trigger_id}." );
 
 			// 4. Send Notification via the specified channel
 			$sent = false;
@@ -196,14 +193,14 @@ class Notification_Processor {
 			} elseif ( $channel === 'push' ) {
 				// Placeholder for push notification logic
 				// Use queue_id for logging consistency
-				$this->logger->warning( "Push notification channel not yet implemented for notification queue_id {$item->queue_id}." );
+				$logger->warning( "Push notification channel not yet implemented for notification queue_id {$item->queue_id}." );
 				$sent = false; // Mark as failed until implemented
 			} else {
 				// Allow filtering for custom channels
 				$sent = \apply_filters( 'scoped_notify_send_notification_channel_' . $channel, false, $user, $object, $item );
 				if ( $sent === false ) {
 					// Use queue_id for logging consistency
-					$this->logger->warning( "Unsupported or unhandled notification channel '{$channel}' for notification queue_id {$item->queue_id}." );
+					$logger->warning( "Unsupported or unhandled notification channel '{$channel}' for notification queue_id {$item->queue_id}." );
 				}
 			}
 
@@ -211,21 +208,21 @@ class Notification_Processor {
 			if ( $switched_blog ) {
 				\restore_current_blog();
 				// Use queue_id for logging consistency
-				$this->logger->debug( "Restored original blog context (Blog ID: {$original_blog_id}) after processing notification queue_id {$item->queue_id}." );
+				$logger->debug( "Restored original blog context (Blog ID: {$original_blog_id}) after processing notification queue_id {$item->queue_id}." );
 			}
 
 			if ( ! $sent ) {
 				// Use queue_id for logging consistency
-				$this->logger->error( "Failed to send notification queue_id {$item->queue_id} via channel '{$channel}' to user {$user->ID}." );
+				$logger->error( "Failed to send notification queue_id {$item->queue_id} via channel '{$channel}' to user {$user->ID}." );
 				return false;
 			}
 
 			// Use queue_id for logging consistency
-			$this->logger->debug( "Successfully sent notification queue_id {$item->queue_id} via channel '{$channel}' to user {$user->ID}." );
+			$logger->debug( "Successfully sent notification queue_id {$item->queue_id} via channel '{$channel}' to user {$user->ID}." );
 			return true;
 		} catch ( \Exception $e ) {
 			// Use queue_id for logging consistency
-			$this->logger->error(
+			$logger->error(
 				"Error processing notification queue_id {$item->queue_id}: " . $e->getMessage(),
 				array(
 					'item'      => $item,
@@ -236,7 +233,7 @@ class Notification_Processor {
 			if ( $switched_blog ) {
 				\restore_current_blog();
 				// Use queue_id for logging consistency
-				$this->logger->debug( "Restored original blog context (Blog ID: {$original_blog_id}) after error on notification queue_id {$item->queue_id}." );
+				$logger->debug( "Restored original blog context (Blog ID: {$original_blog_id}) after error on notification queue_id {$item->queue_id}." );
 			}
 			return false;
 		}
@@ -252,6 +249,8 @@ class Notification_Processor {
 	 * @return \WP_Post|\WP_Comment|mixed|null The object, or null if not found or type unsupported.
 	 */
 	private function get_object( string $object_type, int $object_id, int $blog_id ) {
+		$logger = self::logger();
+
 		// Ensure we are on the correct blog to fetch the object
 		$original_blog_id = null;
 		$switched_blog    = false;
@@ -281,7 +280,7 @@ class Notification_Processor {
 		}
 
 		if ( ! $object ) {
-			$this->logger->warning(
+			$logger->warning(
 				'Could not retrieve object.',
 				array(
 					'object_type' => $object_type,
@@ -303,6 +302,8 @@ class Notification_Processor {
 	 * @return bool True on success, false on failure.
 	 */
 	private function update_notification_status( int $queue_id, string $status, bool $update_sent_at ): bool {
+		$logger = self::logger();
+
 		$data   = array( 'status' => $status );
 		$format = array( '%s' );
 
@@ -320,7 +321,7 @@ class Notification_Processor {
 		);
 
 		if ( $result === false ) {
-			$this->logger->error(
+			$logger->error(
 				"Failed to update status to '{$status}' for notification queue_id {$queue_id}.",
 				array(
 					'error' => $this->wpdb->last_error,
@@ -342,7 +343,9 @@ class Notification_Processor {
 	 * @return bool True if sending was successful, false otherwise.
 	 */
 	private function send_mail_notification( \WP_User $user, $object, \stdClass $item ): bool {
-		$this->logger->info(
+		$logger = self::logger();
+
+		$logger->info(
 			'--- Preparing Mail Notification ---',
 			array(
 				'notification_queue_id' => $item->queue_id, // Use queue_id for logging consistency
@@ -384,7 +387,7 @@ class Notification_Processor {
 		}
 
 		if ( ! $sent ) {
-			$this->logger->error(
+			$logger->error(
 				"wp_mail failed for user {$user->ID}",
 				array(
 					'email'                 => $user->user_email,
@@ -405,6 +408,8 @@ class Notification_Processor {
 	 * @return string The formatted subject line.
 	 */
 	private function format_mail_subject( $object, \stdClass $item ): string {
+		$logger = self::logger();
+
 		// Ensure we are on the correct blog for get_bloginfo.
 		$original_blog_id = null;
 		$switched_blog    = false;
@@ -467,6 +472,8 @@ class Notification_Processor {
 	 * @return string The formatted HTML message body.
 	 */
 	private function format_mail_message( \WP_User $user, $object, \stdClass $item ): string {
+		$logger = self::logger();
+
 		// Ensure we are on the correct blog for permalinks, get_bloginfo etc.
 		$original_blog_id = null;
 		$switched_blog    = false;

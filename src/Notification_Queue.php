@@ -10,13 +10,13 @@ namespace Scoped_Notify;
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
-use Psr\Log\LoggerInterface;
 use Scoped_Notify\Notification_Scheduler;
 
 /**
  * Manages the notification queue (individual notifications).
  */
 class Notification_Queue {
+	use Static_Logger_Trait;
 
 	/**
 	 * Default schedule type if none is found for a user.
@@ -37,12 +37,6 @@ class Notification_Queue {
 	private $resolver;
 
 	/**
-	 * Logger instance.
-	 * @var LoggerInterface
-	 */
-	private $logger;
-
-	/**
 	 * WordPress database object.
 	 * @var \wpdb
 	 */
@@ -60,13 +54,11 @@ class Notification_Queue {
 	 *
 	 * @param Notification_Resolver  $resolver  The notification resolver instance.
 	 * @param Notification_Scheduler $scheduler The notification scheduler instance.
-	 * @param LoggerInterface        $logger    The logger instance.
 	 * @param \wpdb                  $wpdb      WordPress database instance.
 	 */
-	public function __construct( Notification_Resolver $resolver, Notification_Scheduler $scheduler, LoggerInterface $logger, \wpdb $wpdb ) {
+	public function __construct( Notification_Resolver $resolver, Notification_Scheduler $scheduler, \wpdb $wpdb ) {
 		$this->resolver  = $resolver;
 		$this->scheduler = $scheduler; // Store scheduler instance
-		$this->logger    = $logger;
 		$this->wpdb      = $wpdb;
 		// TODO: Get table name from a central config/registry if possible
 		$this->notifications_table_name = 'sn_queue'; // Use new table name
@@ -87,8 +79,10 @@ class Notification_Queue {
 	 * @return int Number of notifications successfully queued.
 	 */
 	public function queue_event_notifications( string $object_type, int $object_id, string $reason, int $blog_id, array $meta = array(), ?int $trigger_id = null ): int {
+		$logger = self::logger();
+
 		if ( null === $trigger_id ) {
-			$this->logger->error(
+			$logger->error(
 				'queue_event_notifications called without a trigger_id.',
 				array(
 					'object_type' => $object_type,
@@ -108,7 +102,7 @@ class Notification_Queue {
 			if ( $blog_id && $blog_id !== $original_blog_id ) {
 				\switch_to_blog( $blog_id );
 				$switched_blog = true;
-				$this->logger->debug( "Switched to blog ID {$blog_id} for recipient resolution." );
+				$logger->debug( "Switched to blog ID {$blog_id} for recipient resolution." );
 			}
 		}
 
@@ -142,7 +136,7 @@ class Notification_Queue {
 				// Allow extension for other object types
 				$recipients = \apply_filters( 'scoped_notify_resolve_recipients', array(), $object, $channel, $trigger_id );
 				if ( empty( $recipients ) ) {
-					$this->logger->warning(
+					$logger->warning(
 						'Recipient resolution not handled for object type.',
 						array(
 							'object_type' => $object_type,
@@ -154,7 +148,7 @@ class Notification_Queue {
 			}
 
 			if ( empty( $recipients ) ) {
-				$this->logger->info(
+				$logger->info(
 					'No recipients resolved for event.',
 					array(
 						'object_type' => $object_type,
@@ -170,7 +164,7 @@ class Notification_Queue {
 				return 0;
 			}
 
-			$this->logger->info(
+			$logger->info(
 				'Resolved ' . \count( $recipients ) . ' recipients for event.',
 				array(
 					'object_type' => $object_type,
@@ -209,7 +203,7 @@ class Notification_Queue {
 					++$queued_count;
 				} else {
 					// Log context already includes most of the data from notification_data
-					$this->logger->error(
+					$logger->error(
 						"Failed to insert notification for user {$user_id}.",
 						array(
 							'user_id'  => $user_id,
@@ -221,7 +215,7 @@ class Notification_Queue {
 				}
 			}
 		} catch ( \Exception $e ) {
-			$this->logger->error(
+			$logger->error(
 				'Error queuing event notifications: ' . $e->getMessage(),
 				array(
 					'object_type' => $object_type,
@@ -236,11 +230,11 @@ class Notification_Queue {
 			// Restore blog context if switched
 			if ( $switched_blog ) {
 				\restore_current_blog();
-				$this->logger->debug( "Restored original blog context (Blog ID: {$original_blog_id})." );
+				$logger->debug( "Restored original blog context (Blog ID: {$original_blog_id})." );
 			}
 		}
 
-		$this->logger->info(
+		$logger->info(
 			"Successfully queued {$queued_count} individual notifications for event.",
 			array(
 				'object_type'      => $object_type,
@@ -265,11 +259,13 @@ class Notification_Queue {
 	 * @return int|false The ID of the inserted notification, or false on failure.
 	 */
 	private function insert_notification( array $notification_data ): int|false {
+		$logger = self::logger();
+
 		// Ensure required keys exist (optional, for robustness)
 		$required_keys = array( 'user_id', 'trigger_id', 'blog_id', 'object_type', 'object_id', 'reason', 'status', 'scheduled_send_time', 'meta', 'created_at' );
 		foreach ( $required_keys as $key ) {
 			if ( ! array_key_exists( $key, $notification_data ) ) {
-				$this->logger->error( "Missing required key '{$key}' in notification data.", $notification_data );
+				$logger->error( "Missing required key '{$key}' in notification data.", $notification_data );
 				return false;
 			}
 		}
@@ -300,7 +296,7 @@ class Notification_Queue {
 		$result = $this->wpdb->insert( $this->notifications_table_name, $data, $format );
 
 		if ( $result === false ) {
-			$this->logger->error(
+			$logger->error(
 				'Failed to insert notification.',
 				array(
 					'data'  => $data, // Log the data prepared for insertion
@@ -313,7 +309,7 @@ class Notification_Queue {
 
 		$notification_id = $this->wpdb->insert_id;
 		// Log the original data array for clarity, before meta encoding
-		$this->logger->info( "Notification record created (ID: {$notification_id}).", $notification_data );
+		$logger->info( "Notification record created (ID: {$notification_id}).", $notification_data );
 		return $notification_id;
 	}
 
@@ -327,6 +323,8 @@ class Notification_Queue {
 	 * @return \WP_Post|\WP_Comment|mixed|null The object, or null if not found or type unsupported.
 	 */
 	private function get_object( string $object_type, int $object_id, int $blog_id ) {
+		$logger = self::logger();
+
 		// Ensure we are on the correct blog to fetch the object
 		$original_blog_id = null;
 		$switched_blog    = false;
@@ -356,7 +354,7 @@ class Notification_Queue {
 		}
 
 		if ( ! $object ) {
-			$this->logger->warning(
+			$logger->warning(
 				'Could not retrieve object.',
 				array(
 					'object_type' => $object_type,
@@ -380,6 +378,8 @@ class Notification_Queue {
 	 * @param \WP_Post $post    Post object. Use FQN
 	 */
 	public function handle_new_post( int $post_id, \WP_Post $post ) {
+		$logger = self::logger();
+
 		// Basic check: only queue for specific post types if needed, e.g., 'post'
 		// TODO: Make post types configurable
 		if ( 'post' !== $post->post_type || 'publish' !== $post->post_status ) {
@@ -417,7 +417,7 @@ class Notification_Queue {
 		);
 
 		if ( empty( $trigger_ids ) ) {
-			$this->logger->debug(
+			$logger->debug(
 				"No triggers found for key '{$trigger_key}'. No notifications queued.",
 				array(
 					'post_id' => $post_id,
@@ -432,7 +432,7 @@ class Notification_Queue {
 			$queued_count  = $this->queue_event_notifications( $object_type, $post_id, $reason, $blog_id, array(), (int) $trigger_id );
 			$total_queued += $queued_count;
 		}
-		$this->logger->info(
+		$logger->info(
 			"Finished queuing for '{$reason}' event.",
 			array(
 				'trigger_key'  => $trigger_key,
@@ -452,6 +452,8 @@ class Notification_Queue {
 	 * @param \WP_Comment $comment    The comment object. Use FQN
 	 */
 	public function handle_new_comment( int $comment_id, \WP_Comment $comment ) {
+		$logger = self::logger();
+
 		// Only queue for approved comments
 		if ( $comment->comment_approved !== '1' ) {
 			return;
@@ -465,7 +467,7 @@ class Notification_Queue {
 		// Determine the trigger key based on the comment's post type
 		$post = get_post( $comment->comment_post_ID );
 		if ( ! $post ) {
-			$this->logger->error(
+			$logger->error(
 				"Could not find post (ID: {$comment->comment_post_ID}) for comment {$comment_id}. Cannot determine trigger key.",
 				array(
 					'comment_id' => $comment_id,
@@ -486,7 +488,7 @@ class Notification_Queue {
 		);
 
 		if ( empty( $trigger_ids ) ) {
-			$this->logger->debug(
+			$logger->debug(
 				"No triggers found for key '{$trigger_key}'. No notifications queued.",
 				array(
 					'comment_id' => $comment_id,
@@ -503,7 +505,7 @@ class Notification_Queue {
 			$queued_count  = $this->queue_event_notifications( $object_type, $comment_id, $reason, $blog_id, array(), (int) $trigger_id );
 			$total_queued += $queued_count;
 		}
-		$this->logger->info(
+		$logger->info(
 			"Finished queuing for '{$reason}' event.",
 			array(
 				'trigger_key'  => $trigger_key,
