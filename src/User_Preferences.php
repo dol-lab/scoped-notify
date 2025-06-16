@@ -22,16 +22,16 @@ class User_Preferences {
 
 	const DEFAULT_PREFERENCE = Notification_Preference::Posts_And_Comments;
 
-	public static function get_network_preference( int $user_id ): Notification_Preference {
+	public static function get_network_preference( int $user_id ): Notification_Preference|null {
 		$pref = self::get(
 			Scope::Network,
 			$user_id,
 		);
 
-		return $pref ?? self::DEFAULT_PREFERENCE;
+		return $pref;
 	}
 
-	public static function get_blog_preference( int $user_id, int $blog_id ): Notification_Preference {
+	public static function get_blog_preference( int $user_id, int $blog_id ): Notification_Preference|null {
 		$pref = self::get(
 			Scope::Blog,
 			$user_id,
@@ -40,10 +40,10 @@ class User_Preferences {
 			),
 		);
 
-		return $pref ?? self::get_network_preference( $user_id );
+		return $pref;
 	}
 
-	public static function get_post_preference( int $user_id, int $blog_id, int $post_id ): Notification_Preference {
+	public static function get_post_preference( int $user_id, int $blog_id, int $post_id ): Notification_Preference|null {
 		$pref = self::get(
 			Scope::Post,
 			$user_id,
@@ -53,7 +53,7 @@ class User_Preferences {
 			),
 		);
 
-		return $pref ?? self::get_blog_preference( $user_id, $blog_id );
+		return $pref;
 	}
 
 	private static function get( Scope $scope, int $user_id, array $constraints = null ): Notification_Preference|null {

@@ -128,6 +128,11 @@ class Notification_Ui {
 				'value'   => 'no-notifications',
 				'checked' => Notification_Preference::No_Notifications === $current_setting,
 			),
+			array(
+				'label'		=> esc_html__( 'Use system default', 'scoped-notify' ),
+				'value'		=> 'use-default',
+				'checked'	=> is_null($current_setting),
+			),
 		);
 		return "
 			<div>
@@ -169,6 +174,11 @@ class Notification_Ui {
 				'value'   => 'no-notifications',
 				'checked' => Notification_Preference::No_Notifications === $current_setting,
 			),
+			array(
+				'label'		=> esc_html__( 'Use profile default', 'scoped-notify' ),
+				'value'		=> 'use-default',
+				'checked'	=> is_null($current_setting),
+			),
 		);
 		return "
 			<ul
@@ -207,7 +217,7 @@ class Notification_Ui {
 			array(
 				'label'		=> esc_html__( 'Use space default', 'scoped-notify' ),
 				'value'		=> 'use-default',
-				'checked'	=> $current_setting === 'use-default',
+				'checked'	=> is_null($current_setting),
 			),
 		);
 		return "
