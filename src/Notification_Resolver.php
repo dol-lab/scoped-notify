@@ -85,24 +85,16 @@ class Notification_Resolver {
 		$term_ids             = \wp_get_post_terms( $post->ID, \get_object_taxonomies( $post_type ), array( 'fields' => 'ids' ) );
 		$term_ids_placeholder = ! empty( $term_ids ) ? implode( ',', array_fill( 0, count( $term_ids ), '%d' ) ) : 'NULL';
 
-		$user_ids_placeholder = ! empty( $potential_recipient_ids ) ? implode( ',', array_fill( 0, count( $potential_recipient_ids ), '%d' ) ) : 'NULL';
+		$user_ids_placeholder = implode( ',', array_fill( 0, count( $potential_recipient_ids ), '%d' ) );
 
-		// Prepare arguments ONLY for the %d/%s/%f placeholders used by wpdb::prepare.
-		// Arguments for the IN clauses are handled by direct SQL string interpolation below.
-		$prepare_args = array(
-			$blog_id,    // 1: blog.blog_id = %d
-			$trigger_id, // 2: blog.trigger_id = %d
-			$blog_id,    // 3: term_unmute.blog_id = %d
-			$trigger_id, // 4: term_unmute.trigger_id = %d
-			$blog_id,    // 5: term_mute.blog_id = %d
-			$trigger_id, // 6: term_mute.trigger_id = %d
-			$trigger_id, // 7: network.trigger_id = %d
+		// Prepare arguments for the query
+		$query_args = array_merge(
+			array( $blog_id, $trigger_id ),           	// for term unmute settings
+			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
+			array( $blog_id, $trigger_id ),           	// for blog settings
+			array( $trigger_id ),                     	// for network settings
+			$potential_recipient_ids            		// final where statement user_id IN (...)
 		);
-
-		// Manually prepare the values for the IN clauses, ensuring they are integers.
-		// This prevents SQL injection as we are building the IN clause string directly.
-		$safe_potential_recipient_ids = ! empty( $potential_recipient_ids ) ? implode( ',', array_map( 'intval', $potential_recipient_ids ) ) : 'NULL';
-		$safe_term_ids                = ! empty( $term_ids ) ? implode( ',', array_map( 'intval', $term_ids ) ) : 'NULL';
 
 		// This query fetches all relevant settings for all potential users in one go.
 		// It uses LEFT JOINs so we always get a row per potential user, even if they have no specific settings.
@@ -112,45 +104,40 @@ class Notification_Resolver {
             SELECT
                 u.ID as user_id,
                 COALESCE(
-                    term_unmute.mute, -- Specificity 2a: Term unmute (unmute wins)
-                    term_mute.mute,   -- Specificity 2b: Term mute (if no unmute for any term)
-                    blog.mute,        -- Specificity 3: Blog setting
-                    network.mute      -- Specificity 4: Network setting
-                    -- Specificity 5 (Default) is handled in PHP if COALESCE returns NULL
+                    term.mute,  	  -- Specificity 2: Term: if any is unmute => unmute, if all are mute => mute
+                    blog.mute,         -- Specificity 3: Blog setting
+                    network.mute       -- Specificity 4: Network setting
+                    -- Specificity 5 (Default) handled in PHP
                 ) as final_mute_state
             FROM
                 {$this->wpdb->users} u
+
+			-- term settings
+            LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0) then unmute, if all are mute (1), then mute
+                SELECT user_id, case when MIN(mute) = 0 then 0 when min(mute) = 1 then 1 else null end as mute
+                FROM sn_scoped_settings_terms
+                WHERE blog_id = %d
+                AND trigger_id = %d
+                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
+                GROUP BY user_id
+            ) term ON term.user_id = u.ID
+
+			-- blog settings
             LEFT JOIN sn_scoped_settings_blogs blog ON blog.user_id = u.ID
                 AND blog.blog_id = %d
                 AND blog.trigger_id = %d
-            LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0)
-                SELECT user_id, MIN(mute) as mute -- MIN(mute) will be 0 if any term is unmuted
-                FROM sn_scoped_settings_terms
-                WHERE blog_id = %d
-                AND trigger_id = %d
-                AND user_id IN ({$safe_potential_recipient_ids}) -- Use safe, interpolated values
-                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$safe_term_ids})" : 'AND 1=0' ) . " -- Use safe, interpolated values
-                GROUP BY user_id
-                HAVING MIN(mute) = 0 -- Only keep users with at least one explicit unmute
-            ) term_unmute ON term_unmute.user_id = u.ID
-             LEFT JOIN ( -- Find the mute status IF all relevant term settings are MUTE (1)
-                SELECT user_id, MAX(mute) as mute -- MAX(mute) will be 1 only if ALL relevant terms are muted
-                FROM sn_scoped_settings_terms
-                WHERE blog_id = %d
-                AND trigger_id = %d
-                AND user_id IN ({$safe_potential_recipient_ids}) -- Use safe, interpolated values
-                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$safe_term_ids})" : 'AND 1=0' ) . " -- Use safe, interpolated values
-                GROUP BY user_id
-                HAVING MAX(mute) = 1 -- Only keep users where all settings are explicit mute
-            ) term_mute ON term_mute.user_id = u.ID AND term_unmute.user_id IS NULL -- Only consider if no term unmute exists
+
+			-- user settings
             LEFT JOIN sn_scoped_settings_network_users network ON network.user_id = u.ID
                 AND network.trigger_id = %d
+
             WHERE
-                u.ID IN ({$safe_potential_recipient_ids}) -- Use safe, interpolated values
+                u.ID IN ({$user_ids_placeholder})
+
         ";
 
-		// Prepare the SQL statement using only the arguments for %d/%s/%f placeholders
-		$prepared_sql = $this->wpdb->prepare( $sql, $prepare_args );
+		// Prepare the SQL statement
+		$prepared_sql = $this->wpdb->prepare( $sql, $query_args );
 
 		// Check if prepare failed (returned empty string or false)
 		if ( empty( $prepared_sql ) ) {
@@ -260,18 +247,16 @@ class Notification_Resolver {
 
 		// Prepare arguments for the query
 		$query_args = array_merge(
-			array( $blog_id, $post->ID, $trigger_id ), // for post settings
-			$potential_recipient_ids,           // for post settings user_id IN (...)
-			array( $blog_id, $trigger_id ),            // for term unmute settings
-			$potential_recipient_ids,           // for term unmute settings user_id IN (...)
-			! empty( $term_ids ) ? $term_ids : array(), // for term unmute settings term_id IN (...)
-			array( $blog_id, $trigger_id ),            // for term mute settings
-			$potential_recipient_ids,           // for term mute settings user_id IN (...)
-			! empty( $term_ids ) ? $term_ids : array(), // for term mute settings term_id IN (...)
-			array( $blog_id, $trigger_id ),            // for blog settings
-			$potential_recipient_ids,           // for blog settings user_id IN (...)
-			array( $trigger_id ),                      // for network settings
-			$potential_recipient_ids            // for network settings user_id IN (...)
+			array( $blog_id, $post->ID, $trigger_id ),	// for post settings
+														//
+			array( $blog_id, $trigger_id ),           	// for term unmute settings
+			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
+														//
+			array( $blog_id, $trigger_id ),           	// for blog settings
+														//
+			array( $trigger_id ),                     	// for network settings
+														//
+			$potential_recipient_ids            		// final where statement user_id IN (...)
 		);
 
 		// Query logic similar to posts, but includes the post-specific setting as highest priority.
@@ -281,43 +266,39 @@ class Notification_Resolver {
                 u.ID as user_id,
                 COALESCE(
                     post_comment.mute, -- Specificity 1: Post setting for comments
-                    term_unmute.mute,  -- Specificity 2a: Term unmute (unmute wins)
-                    term_mute.mute,    -- Specificity 2b: Term mute (if no unmute for any term)
+                    term.mute,  	  -- Specificity 2: Term: if any is unmute => unmute, if all are mute => mute
                     blog.mute,         -- Specificity 3: Blog setting
                     network.mute       -- Specificity 4: Network setting
                     -- Specificity 5 (Default) handled in PHP
                 ) as final_mute_state
             FROM
                 {$this->wpdb->users} u
+
+			-- post settings
             LEFT JOIN sn_scoped_settings_post_comments post_comment ON post_comment.user_id = u.ID
                 AND post_comment.blog_id = %d
                 AND post_comment.post_id = %d
                 AND post_comment.trigger_id = %d
-            LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0)
-                SELECT user_id, MIN(mute) as mute
+
+			-- term settings
+            LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0) then unmute, if all are mute (1), then mute
+                SELECT user_id, case when MIN(mute) = 0 then 0 when min(mute) = 1 then 1 else null end as mute
                 FROM sn_scoped_settings_terms
                 WHERE blog_id = %d
                 AND trigger_id = %d
-                AND user_id IN ({$user_ids_placeholder})
                 " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
                 GROUP BY user_id
-                HAVING MIN(mute) = 0
-            ) term_unmute ON term_unmute.user_id = u.ID
-            LEFT JOIN ( -- Find the mute status IF all relevant term settings are MUTE (1)
-                SELECT user_id, MAX(mute) as mute
-                FROM sn_scoped_settings_terms
-                WHERE blog_id = %d
-                AND trigger_id = %d
-                AND user_id IN ({$user_ids_placeholder})
-                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
-                GROUP BY user_id
-                HAVING MAX(mute) = 1
-            ) term_mute ON term_mute.user_id = u.ID AND term_unmute.user_id IS NULL
+            ) term ON term.user_id = u.ID
+
+			-- blog settings
             LEFT JOIN sn_scoped_settings_blogs blog ON blog.user_id = u.ID
                 AND blog.blog_id = %d
                 AND blog.trigger_id = %d
+
+			-- user settings
             LEFT JOIN sn_scoped_settings_network_users network ON network.user_id = u.ID
                 AND network.trigger_id = %d
+
             WHERE
                 u.ID IN ({$user_ids_placeholder})
         ";
