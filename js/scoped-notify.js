@@ -5,14 +5,13 @@ document.onreadystatechange = () => {
 };
 
 scopedNotify = () => {
-	document.querySelectorAll(".scoped-notify-options").forEach((radiogroup) => {
+	document.querySelectorAll(".js-scoped-notify-radiogroup").forEach((radiogroup) => {
 		radiogroup.addEventListener("change", (event) => {
 			const scope		= event.currentTarget.dataset.scope;
 			const blogId	= event.currentTarget.dataset.blogId;
 			const postId	= event.currentTarget.dataset.postId;
 			const value		= event.target.value;
-			console.log("endpoint", data.rest.endpoint);
-			console.log(`Scoped notify hallo`, scope, blogId, postId, value);
+			console.debug(`scoped-notify settings request at endpoint ${data.rest.endpoint}: scope ${scope}, blogId ${blogId}, postId ${postId}, value ${value}`);
 			request = $.ajax({
 				type:			"POST",
 				contentType:	"application/json",

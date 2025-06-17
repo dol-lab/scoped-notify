@@ -429,27 +429,33 @@ class Notification_Processor {
 			if ( $object instanceof \WP_Post ) {
 				switch ( $item->reason ) {
 					case 'new_post':
-						$subject = \sprintf( \__( '[%1$s] New Post Published: %2$s', 'snotify' ), $blog_name, $object->post_title );
+						/* translators:  %1$s blog name, "%2$s post title */
+						$subject = \sprintf( \__( '[%1$s] New Post Published: %2$s', 'scoped-notify' ), $blog_name, $object->post_title );
 						break;
 					default: // Fallback for other post reasons
-						$subject = \sprintf( \__( '[%1$s] Notification regarding Post: %2$s', 'snotify' ), $blog_name, $object->post_title );
+						/* translators:  %1$s blog name, "%2$s post title */
+						$subject = \sprintf( \__( '[%1$s] Notification regarding Post: %2$s', 'scoped-notify' ), $blog_name, $object->post_title );
 				}
 			} elseif ( $object instanceof \WP_Comment ) {
 				$post       = \get_post( $object->comment_post_ID );
-				$post_title = $post ? $post->post_title : \__( 'a post', 'snotify' );
+				$post_title = $post ? $post->post_title : \__( 'a post', 'scoped-notify' );
 				switch ( $item->reason ) {
 					case 'new_comment':
-						$subject = \sprintf( \__( '[%1$s] New Comment on: %2$s', 'snotify' ), $blog_name, $post_title );
+						/* translators:  %1$s blog name, "%2$s post title */
+						$subject = \sprintf( \__( '[%1$s] New Comment on: %2$s', 'scoped-notify' ), $blog_name, $post_title );
 						break;
 					case 'mention': // Example for future use
-						$subject = \sprintf( \__( '[%1$s] You were mentioned in a comment on: %2$s', 'snotify' ), $blog_name, $post_title );
+						/* translators:  %1$s blog name, "%2$s post title */
+						$subject = \sprintf( \__( '[%1$s] You were mentioned in a comment on: %2$s', 'scoped-notify' ), $blog_name, $post_title );
 						break;
 					default: // Fallback for other comment reasons
-						$subject = \sprintf( \__( '[%1$s] Notification regarding Comment on: %2$s', 'snotify' ), $blog_name, $post_title );
+						/* translators:  %1$s blog name, "%2$s post title */
+						$subject = \sprintf( \__( '[%1$s] Notification regarding Comment on: %2$s', 'scoped-notify' ), $blog_name, $post_title );
 				}
 			} else {
 				// Generic fallback
-				$subject = \sprintf( \__( '[%1$s] New Notification (%2$s)', 'snotify' ), $blog_name, $item->reason );
+				/* translators:  %1$s blog name, "%2$s reason */
+				$subject = \sprintf( \__( '[%1$s] New Notification (%2$s)', 'scoped-notify' ), $blog_name, $item->reason );
 			}
 		} finally {
 			// Restore blog context if switched
@@ -487,7 +493,8 @@ class Notification_Processor {
 
 		$message = '';
 		try {
-			$message      = '<p>' . \sprintf( \__( 'Hello %s,', 'snotify' ), $user->display_name ) . '</p>';
+			/*translators: %s user display name */
+			$message      = '<p>' . \sprintf( \__( 'Hello %s,', 'scoped-notify' ), $user->display_name ) . '</p>';
 			$object_link  = null;
 			$object_title = '';
 			$blog_name    = \get_bloginfo( 'name' );
@@ -498,14 +505,16 @@ class Notification_Processor {
 				switch ( $item->reason ) {
 					case 'new_post':
 						$message .= '<p>' . \sprintf(
-							\__( 'A new post, "%1$s", has been published on %2$s.', 'snotify' ),
+							/* translators:  %1$s object title, "%2$s blog name */
+							\__( 'A new post, "%1$s", has been published on %2$s.', 'scoped-notify' ),
 							\esc_html( $object_title ),
 							$blog_name
 						) . '</p>';
 						break;
 					default:
 						$message .= '<p>' . \sprintf(
-							\__( 'There is a notification regarding the post "%1$s" on %2$s.', 'snotify' ),
+							/* translators:  %1$s object title, "%2$s blog name */
+							\__( 'There is a notification regarding the post "%1$s" on %2$s.', 'scoped-notify' ),
 							\esc_html( $object_title ),
 							$blog_name
 						) . '</p>';
@@ -513,13 +522,14 @@ class Notification_Processor {
 			} elseif ( $object instanceof \WP_Comment ) {
 				$object_link    = \get_comment_link( $object );
 				$post           = \get_post( $object->comment_post_ID );
-				$post_title     = $post ? $post->post_title : \__( 'a post', 'snotify' );
+				$post_title     = $post ? $post->post_title : \__( 'a post', 'scoped-notify' );
 				$commenter_name = $object->comment_author;
 
 				switch ( $item->reason ) {
 					case 'new_comment':
 						$message .= '<p>' . \sprintf(
-							\__( '%1$s left a new comment on the post "%2$s":', 'snotify' ),
+							/* translators:  %1$s commenter name, "%2$s post title */
+							\__( '%1$s left a new comment on the post "%2$s":', 'scoped-notify' ),
 							\esc_html( $commenter_name ),
 							\esc_html( $post_title )
 						) . '</p>';
@@ -527,7 +537,8 @@ class Notification_Processor {
 						break;
 					case 'mention':
 						$message .= '<p>' . \sprintf(
-							\__( 'You were mentioned by %1$s in a comment on the post "%2$s":', 'snotify' ),
+							/* translators:  %1$s commenter name, "%2$s post title */
+							\__( 'You were mentioned by %1$s in a comment on the post "%2$s":', 'scoped-notify' ),
 							\esc_html( $commenter_name ),
 							\esc_html( $post_title )
 						) . '</p>';
@@ -535,7 +546,8 @@ class Notification_Processor {
 						break;
 					default:
 						$message .= '<p>' . \sprintf(
-							\__( 'There is a notification regarding a comment by %1$s on the post "%2$s".', 'snotify' ),
+							/* translators:  %1$s commenter name, "%2$s post title */
+							\__( 'There is a notification regarding a comment by %1$s on the post "%2$s".', 'scoped-notify' ),
 							\esc_html( $commenter_name ),
 							\esc_html( $post_title )
 						) . '</p>';
@@ -543,14 +555,15 @@ class Notification_Processor {
 			} else {
 				// Generic fallback
 				$message .= '<p>' . \sprintf(
-					\__( 'A notification was triggered with reason: %s', 'snotify' ),
+					/* translators: %s reason */
+					\__( 'A notification was triggered with reason: %s', 'scoped-notify' ),
 					\esc_html( $item->reason )
 				) . '</p>';
 			}
 
 			// Add link if available
 			if ( $object_link ) {
-				$link_text = ( $object instanceof \WP_Comment ) ? \__( 'View Comment', 'snotify' ) : \__( 'View Post', 'snotify' );
+				$link_text = ( $object instanceof \WP_Comment ) ? \__( 'View Comment', 'scoped-notify' ) : \__( 'View Post', 'scoped-notify' );
 				$message  .= '<p><a href="' . \esc_url( $object_link ) . '">' . $link_text . '</a></p>';
 			}
 
@@ -558,7 +571,8 @@ class Notification_Processor {
 
 			$message .= '<p>---</p>';
 			// Add footer? e.g., site name
-			$message .= '<p><small>' . \sprintf( \__( 'This email was sent from %s.', 'snotify' ), $blog_name ) . '</small></p>';
+			/* translators: %s blog name */
+			$message .= '<p><small>' . \sprintf( \__( 'This email was sent from %s.', 'scoped-notify' ), $blog_name ) . '</small></p>';
 		} finally {
 			// Restore blog context if switched
 			if ( $switched_blog ) {

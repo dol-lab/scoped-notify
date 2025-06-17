@@ -25,42 +25,151 @@ msgstr ""
 msgid "Scoped Notify Error: Composer dependencies not found. Please run \"composer install\" in the plugin directory."
 msgstr ""
 
-#: scoped-notify.php:277
+#: scoped-notify.php:250
 msgid "Scoped Notify Error:"
 msgstr ""
 
-#: scoped-notify.php:338
+#: scoped-notify.php:311
 msgid "Every Five Minutes"
 msgstr ""
 
-#: src/Notification_Ui.php:49
-msgid "Notify Me"
-msgstr "Benachrichtigungen"
-
-#: src/Notification_Ui.php:108
-#: src/Notification_Ui.php:144
-msgid "Posts"
-msgstr "Posts"
-
-#: src/Notification_Ui.php:113
-#: src/Notification_Ui.php:149
-msgid "Posts and Comments"
-msgstr "Posts und Kommentare"
-
 #: src/Notification_Ui.php:118
-#: src/Notification_Ui.php:154
-#: src/Notification_Ui.php:183
+#: src/Notification_Ui.php:166
+#: src/Notification_Ui.php:206
 msgid "No Notifications"
 msgstr "Keine Benachrichtigungen"
 
-#: src/Notification_Ui.php:125
-msgid "Global notification settings"
-msgstr "Benachrichtigungen (global)"
+#: src/Notification_Ui.php:56
+msgid "Space Mail Notification"
+msgstr "Space Mail-Benachrichtigungen"
 
-#: src/Notification_Ui.php:178
-msgid "Notifications for Comments"
-msgstr "Kommentar-Benachrichtigungen"
+#: src/Notification_Ui.php:108
+#: src/Notification_Ui.php:156
+msgid "For Posts"
+msgstr "Für Posts"
 
-#: src/Notification_Ui.php:188
-msgid "Use space default"
-msgstr "Default"
+#: src/Notification_Ui.php:113
+#: src/Notification_Ui.php:161
+msgid "For Posts and Comments"
+msgstr "Für Posts und Kommentare"
+
+#: src/Notification_Ui.php:123
+msgid "Use Server Default"
+msgstr "Systemeinstellung"
+
+#: src/Notification_Ui.php:131
+msgid "Profile Mail Notification"
+msgstr "Profil Mail-Benachrichtigungen"
+
+#: src/Notification_Ui.php:171
+msgid "Use my Profile Default"
+msgstr "Meine Profileinstellung"
+
+#: src/Notification_Ui.php:201
+msgid "For Comments"
+msgstr "Für Kommentare"
+
+#: src/Notification_Ui.php:211
+msgid "Use my Space Default"
+msgstr "Meine Space-Einstellung"
+
+#: src/Notification_Ui.php:219
+msgid "Mail Notification"
+msgstr "Mail-Benachrichtigung"
+
+#. translators:  %1$s blog name, "%2$s post title
+#: src/Notification_Processor.php:433
+#, php-format
+msgid "[%1$s] New Post Published: %2$s"
+msgstr "[%1$s] Neuer Beitrag veröffentlicht: %2$s"
+
+#. translators:  %1$s blog name, "%2$s post title
+#: src/Notification_Processor.php:437
+#, php-format
+msgid "[%1$s] Notification regarding Post: %2$s"
+msgstr "[%1$s] Benachrichtigung für Beitrag: %2$s"
+
+#: src/Notification_Processor.php:441
+#: src/Notification_Processor.php:525
+msgid "a post"
+msgstr "ein Beitrag"
+
+#. translators:  %1$s blog name, "%2$s post title
+#: src/Notification_Processor.php:445
+#, php-format
+msgid "[%1$s] New Comment on: %2$s"
+msgstr "[%1$s] Neuer Kommentar zu: %2$s"
+
+#. translators:  %1$s blog name, "%2$s post title
+#: src/Notification_Processor.php:449
+#, php-format
+msgid "[%1$s] You were mentioned in a comment on: %2$s"
+msgstr "[%1$s] Du wurdest in einem Kommentar erwähnt: %2$s"
+
+#. translators:  %1$s blog name, "%2$s post title
+#: src/Notification_Processor.php:453
+#, php-format
+msgid "[%1$s] Notification regarding Comment on: %2$s"
+msgstr "[%1$s] Benachrichtigung zu Kommentar auf: %2$s"
+
+#. translators:  %1$s blog name, "%2$s reason
+#: src/Notification_Processor.php:458
+#, php-format
+msgid "[%1$s] New Notification (%2$s)"
+msgstr "[%1$s] Neue Benachrichtigung (%2$s)"
+
+#. translators: %s user display name
+#: src/Notification_Processor.php:497
+#, php-format
+msgid "Hello %s,"
+msgstr "Hallo %s,"
+
+#. translators:  %1$s object title, "%2$s blog name
+#: src/Notification_Processor.php:509
+#, php-format
+msgid "A new post, \"%1$s\", has been published on %2$s."
+msgstr "Ein neuer Beitrag, \"%1$s\", wurde veröffentlicht auf %2$s."
+
+#. translators:  %1$s object title, "%2$s blog name
+#: src/Notification_Processor.php:517
+#, php-format
+msgid "There is a notification regarding the post \"%1$s\" on %2$s."
+msgstr "Es gibt eine Benachrichtigung zu Beitrag \"%1$s\" auf %2$s."
+
+#. translators:  %1$s commenter name, "%2$s post title
+#: src/Notification_Processor.php:532
+#, php-format
+msgid "%1$s left a new comment on the post \"%2$s\":"
+msgstr "%1$s hat den Beitrag \"%2$s\" kommentiert:"
+
+#. translators:  %1$s commenter name, "%2$s post title
+#: src/Notification_Processor.php:541
+#, php-format
+msgid "You were mentioned by %1$s in a comment on the post \"%2$s\":"
+msgstr "Du wurdest von %1$s in einem Kommentar zu \"%2$s\" erwähnt:"
+
+#. translators:  %1$s commenter name, "%2$s post title
+#: src/Notification_Processor.php:550
+#, php-format
+msgid "There is a notification regarding a comment by %1$s on the post \"%2$s\"."
+msgstr "Es gibt keine Benachrichtigung zu einem Kommentar von %1$s auf den Beitrag \"%2$s\"."
+
+#. translators: %s reason
+#: src/Notification_Processor.php:559
+#, php-format
+msgid "A notification was triggered with reason: %s"
+msgstr "Eine Benachrichtigung wurde ausgelöst wegen: %s"
+
+#: src/Notification_Processor.php:566
+msgid "View Comment"
+msgstr "Kommentar ansehen"
+
+#: src/Notification_Processor.php:566
+msgid "View Post"
+msgstr "Beitrag ansehen"
+
+#. translators: %s blog name
+#: src/Notification_Processor.php:575
+#, php-format
+msgid "This email was sent from %s."
+msgstr "Diese E-Mail wurde von %s verschickt."

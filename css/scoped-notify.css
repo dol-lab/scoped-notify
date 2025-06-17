@@ -1,0 +1,28 @@
+/*
+use to style the option setting
+besides its own scoped-notify uses foundation classes for styling:
+radio-accordion-item, radio, label-wrapper, radio-input, show-for-sr
+
+currently the following own classes exist:
+.scoped-notify-options {}
+.scoped-notify-options--network {}
+.scoped-notify-options--blog {}
+.scoped-notify-options--comment {}
+
+.scoped-notify-options-list {}
+#scoped-notify-blog-notification {}
+*/
+
+.scoped-notify-options-title {
+	margin-bottom: .25rem;
+	font-weight: 500;
+}
+
+.scoped-notify-options .scoped-notify-options-list {
+	margin-left: 0rem;
+}
+
+/* same font-size as .dropdown-pane */
+.scoped-notify-options .scoped-notify-radio-label {
+	font-size: .8rem;
+}
