@@ -20,7 +20,10 @@ define( 'SCOPED_NOTIFY_VERSION', '0.1.1' ); // Incremented version to trigger DB
 define( 'SCOPED_NOTIFY_PLUGIN_FILE', __FILE__ );
 define( 'SCOPED_NOTIFY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOPED_NOTIFY_DB_VERSION_OPTION', 'scoped_notify_db_version' );
+define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' );
+define( 'SCOPED_NOTIFY_NOREPLY_EMAIL', 'scoped_notify_noreplay_email' );
 define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cron hook name.
+
 
 // Include Composer autoloader if it exists.
 if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
@@ -143,6 +146,9 @@ function activate_plugin() {
 		set_transient( 'scoped_notify_admin_error', 'Activation failed: Custom Table Manager library missing. Please run composer install.', 60 );
 		return; // Stop activation if critical component missing.
 	}
+
+	\add_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 400 );
+	\add_site_option( SCOPED_NOTIFY_NOREPLY_EMAIL, '' );
 
 	try {
 		$config_file = SCOPED_NOTIFY_PLUGIN_DIR . 'config/database-tables.php';
@@ -347,12 +353,13 @@ function uninstall_plugin() {
 
 	// Delete options
 	\delete_site_option( SCOPED_NOTIFY_DB_VERSION_OPTION );
+	\delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE );
+	\delete_site_option( SCOPED_NOTIFY_NOREPLY_EMAIL );
 	$logger->info( 'Scoped Notify Uninstall: Options deleted.' );
 }
 
 /**
  * Callback function for the WP-Cron event to process the notification queue.
- * @todo: Get all immediate users for the same post and process them in one go.
  */
 function process_notification_queue_cron() {
 	$logger = Logger::create();

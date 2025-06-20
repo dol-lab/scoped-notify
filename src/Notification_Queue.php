@@ -5,6 +5,8 @@
  * @package Scoped_Notify
  */
 
+declare(strict_types=1);
+
 namespace Scoped_Notify;
 
 // Exit if accessed directly.

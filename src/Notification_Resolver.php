@@ -5,6 +5,8 @@
  * @package Scoped_Notify
  */
 
+declare(strict_types=1);
+
 namespace Scoped_Notify;
 
 // Exit if accessed directly.
@@ -382,8 +384,7 @@ class Notification_Resolver {
 	}
 
 	/**
-	 * Placeholder: Get the trigger ID for a given key and channel.
-	 * Needs implementation, likely querying the sn_triggers table.
+	 * Get the trigger ID for a given key and channel.
 	 *
 	 * @param string $trigger_key The trigger key (e.g., 'post-post').
 	 * @param string $channel     The notification channel.
