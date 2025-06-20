@@ -36,72 +36,79 @@ class Rest_Api {
 	private static function set_user_preferences( \WP_REST_Request $request ): WP_REST_Response {
 		$logger = self::logger();
 
-		// $logger->debug( 'params', array( 'params' => $request->get_params() ) );
+		try {
 
-		// check if given scope exists
-		$scope  = Scope::tryFrom( $request['scope'] );
-		if (null === $scope) {
-			$logger->warning("scope ".urlencode($request['scope'])." does not exist");
-			return self::return_error();
-		}
-		//$logger->debug("scope: ".$scope->value);
+			// $logger->debug( 'params', array( 'params' => $request->get_params() ) );
 
-		$fields = array(
-			'user_id' => wp_get_current_user()->ID,
-		);
-
-		if ( Scope::Blog === $scope || Scope::Post === $scope ) {
-			$fields['blog_id'] = $request['blogId'];
-		}
-
-		if ( Scope::Post === $scope ) {
-			$fields['post_id'] = $request['postId'];
-		}
-
-		// check if preference should be set back to default
-		if ("use-default" === $request['value']) {
-			$args = array(
-				'scope'  => $scope,
-				'fields' => $fields,
-			);
-
-			$res = User_Preferences::remove( ...$args );
-		}
-		else {
-
-			// for scope blog: "yes_notifications" is set to "comment_post"
-			// check if given preference exists
-			// different scopes have different sets of valid preferences
-			if ( ( 'post' === $scope->value ) && ( 'yes-notifications' === $request['value'] ) ) {
-				// $logger->debug("setting yes-notifications for post to posts_and_comments");
-				$preference = Notification_Preference::Posts_And_Comments;
-			}
-			else {
-				$preference  = Notification_Preference::tryFrom( $request['value'] );
-			}
-			if (null === $preference) {
-				$logger->warning("notification preference ".urlencode($request['value'])." does not exist for scope ".$scope->value);
+			// check if given scope exists
+			$scope  = Scope::tryFrom( $request['scope'] );
+			if (null === $scope) {
+				$logger->warning("scope ".urlencode($request['scope'])." does not exist");
 				return self::return_error();
 			}
+			//$logger->debug("scope: ".$scope->value);
 
-			$args = array(
-				'scope'  => $scope,
-				'pref'   => $preference,
-				'fields' => $fields,
+			$fields = array(
+				'user_id' => wp_get_current_user()->ID,
 			);
 
-			// $logger->debug( 'args', array( 'args' => $args ) );
+			if ( Scope::Blog === $scope || Scope::Post === $scope ) {
+				$fields['blog_id'] = $request['blogId'];
+			}
 
-			$res = User_Preferences::set( ...$args );
-		}
+			if ( Scope::Post === $scope ) {
+				$fields['post_id'] = $request['postId'];
+			}
 
-		return rest_ensure_response(
-			new WP_REST_Response(
-				array(
-					'status' => $res ? 'success' : 'error',
+			// check if preference should be set back to default
+			if ("use-default" === $request['value']) {
+				$args = array(
+					'scope'  => $scope,
+					'fields' => $fields,
+				);
+
+				$res = User_Preferences::remove( ...$args );
+			}
+			else {
+
+				// for scope blog: "yes_notifications" is set to "comment_post"
+				// check if given preference exists
+				// different scopes have different sets of valid preferences
+				if ( ( 'post' === $scope->value ) && ( 'yes-notifications' === $request['value'] ) ) {
+					// $logger->debug("setting yes-notifications for post to posts_and_comments");
+					$preference = Notification_Preference::Posts_And_Comments;
+				}
+				else {
+					$preference  = Notification_Preference::tryFrom( $request['value'] );
+				}
+				if (null === $preference) {
+					$logger->warning("notification preference ".urlencode($request['value'])." does not exist for scope ".$scope->value);
+					return self::return_error();
+				}
+
+				$args = array(
+					'scope'  => $scope,
+					'pref'   => $preference,
+					'fields' => $fields,
+				);
+
+				// $logger->debug( 'args', array( 'args' => $args ) );
+
+				$res = User_Preferences::set( ...$args );
+			}
+
+			return rest_ensure_response(
+				new WP_REST_Response(
+					array(
+						'status' => $res ? 'success' : 'error',
+					)
 				)
-			)
-		);
+			);
+		}
+		catch ( \Exception $e ) {
+			$logger->error("an uncaught error occured while executing rest API: ".$e->getMessage());
+			return self::return_error();
+		}
 	}
 
 	private static function return_error(): WP_REST_Response {
