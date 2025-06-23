@@ -22,13 +22,18 @@ class User_Preferences {
 
 	const DEFAULT_PREFERENCE = Notification_Preference::Posts_And_Comments;
 
-	public static function get_network_preference( int $user_id ): Notification_Preference|null {
+	public static function get_network_preference( int $user_id ): Notification_Preference {
 		$pref = self::get(
 			Scope::Network,
 			$user_id,
 		);
 
-		return $pref;
+		if ( null === $pref) {
+			return DEFAULT_PREFERENCE
+		}
+		else {
+			return $pref;
+		}
 	}
 
 	public static function get_blog_preference( int $user_id, int $blog_id ): Notification_Preference|null {
