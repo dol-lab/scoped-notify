@@ -12,7 +12,7 @@ return array(
 		 *  - a post of post-type 'post' (trigger_key = 'post-post') and sent via the 'mail' channel.
 		 *  - by a comment on a post (trigger_key = 'comment-post') and sent via the 'push' channel.
 		 */
-		'name'    => 'sn_triggers',
+		'name'    => SCOPED_NOTIFY_TABLE_TRIGGERS,
 		'columns' => array(
 			'trigger_id'  => 'bigint(20) unsigned NOT NULL AUTO_INCREMENT',
 			'trigger_key' => 'varchar(50) NOT NULL', // e.g., post-post, comment-post
@@ -29,7 +29,7 @@ return array(
 		 * Stores the user's preferred notification delivery schedule (e.g., immediate, daily, weekly) per blog and channel.
 		 * Defaults are set in code if no entry exists.
 		 */
-		'name'    => 'sn_user_blog_schedules',
+		'name'    => SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES,
 		'columns' => array(
 			'user_id'       => 'bigint(20) NOT NULL',
 			'blog_id'       => 'bigint(20) NOT NULL',
@@ -50,7 +50,7 @@ return array(
 		 * @todo: if a post is published in a blog with 3 subscribers, 3 entries are created in this table.
 		 *        We might want to have 2 tables for this for platform-notifications/activity.
 		 */
-		'name'    => 'sn_queue',
+		'name'    => SCOPED_NOTIFY_TABLE_QUEUE,
 		'columns' => array(
 			'queue_id'            => 'bigint(20) unsigned NOT NULL AUTO_INCREMENT',
 			'user_id'             => 'bigint(20) NOT NULL',
@@ -72,7 +72,7 @@ return array(
             KEY `user_status_schedule` (`user_id`, `status`, `scheduled_send_time`),
             KEY `status_schedule` (`status`, `scheduled_send_time`),
             KEY `object_info` (`object_type`, `object_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `sn_triggers` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 	/**
@@ -85,7 +85,7 @@ return array(
 		 * Stores user notification preferences that apply network-wide (across all blogs).
 		 * Set in the user's profile.
 		 */
-		'name'    => 'sn_scoped_settings_network_users',
+		'name'    => SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE,
 		'columns' => array(
 			'user_id'    => 'bigint(20) NOT NULL',
 			'trigger_id' => 'bigint(20) unsigned NOT NULL',
@@ -95,7 +95,7 @@ return array(
             {columns_create},
             PRIMARY KEY (`user_id`, `trigger_id`),
             KEY `user_id` (`user_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `sn_triggers` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 	array(
@@ -103,7 +103,7 @@ return array(
 		 * Stores user notification preferences specific to individual blogs.
 		 * Overrides network-wide settings for that blog.
 		 */
-		'name'    => 'sn_scoped_settings_blogs',
+		'name'    => SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS,
 		'columns' => array(
 			'blog_id'    => 'bigint(20) NOT NULL',
 			'user_id'    => 'bigint(20) NOT NULL',
@@ -114,7 +114,7 @@ return array(
             {columns_create},
             PRIMARY KEY (`blog_id`, `user_id`, `trigger_id`),
             KEY `user_id` (`user_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `sn_triggers` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 	array(
@@ -122,7 +122,7 @@ return array(
 		 * Stores user notification preferences specific to taxonomy terms within a blog.
 		 * Overrides blog and network settings for that term.
 		 */
-		'name'    => 'sn_scoped_settings_terms',
+		'name'    => SCOPED_NOTIFY_TABLE_SETTINGS_TERMS,
 		'columns' => array(
 			'blog_id'    => 'bigint(20) NOT NULL',
 			'user_id'    => 'bigint(20) NOT NULL',
@@ -135,7 +135,7 @@ return array(
             PRIMARY KEY (`blog_id`, `user_id`, `term_id`, `trigger_id`),
             KEY `user_id` (`user_id`),
             KEY `term_lookup` (`blog_id`, `term_id`, `trigger_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `sn_triggers` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 	array(
@@ -143,7 +143,7 @@ return array(
 		 * Stores user notification preferences specifically for comments on a particular post.
 		 * Overrides term, blog, and network settings for comments on that post.
 		 */
-		'name'    => 'sn_scoped_settings_post_comments',
+		'name'    => SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS,
 		'columns' => array(
 			'blog_id'    => 'bigint(20) NOT NULL',
 			'user_id'    => 'bigint(20) NOT NULL',
@@ -156,7 +156,7 @@ return array(
             PRIMARY KEY (`blog_id`, `post_id`, `user_id`, `trigger_id`),
             KEY `user_id` (`user_id`),
             KEY `post_lookup` (`blog_id`, `post_id`, `trigger_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `sn_triggers` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 );

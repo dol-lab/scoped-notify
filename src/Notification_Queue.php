@@ -63,14 +63,14 @@ class Notification_Queue {
 		$this->scheduler = $scheduler; // Store scheduler instance
 		$this->wpdb      = $wpdb;
 		// TODO: Get table name from a central config/registry if possible
-		$this->notifications_table_name = 'sn_queue'; // Use new table name
+		$this->notifications_table_name = SCOPED_NOTIFY_TABLE_QUEUE; // Use new table name
 	}
 
 	/**
 	 * Queues notifications for all relevant users based on a trigger event.
 	 *
 	 * Resolves recipients, checks their schedules, and inserts individual notification
-	 * records into the `sn_queue` table.
+	 * records into the SCOPED_NOTIFY_TABLE_QUEUE table.
 	 *
 	 * @param string   $object_type Type of the object triggering the notification.
 	 * @param int      $object_id   ID of the object.
@@ -111,9 +111,8 @@ class Notification_Queue {
 		$queued_count = 0;
 		try {
 			// 1. Get Channel from Trigger
-			$trigger_table = 'sn_triggers'; // TODO: Centralize table name
 			$trigger       = $this->wpdb->get_row(
-				$this->wpdb->prepare( "SELECT channel FROM {$trigger_table} WHERE trigger_id = %d", $trigger_id )
+				$this->wpdb->prepare( "SELECT channel FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_id = %d", $trigger_id )
 			);
 			if ( ! $trigger || empty( $trigger->channel ) ) {
 				throw new \Exception( "Could not find trigger or channel for trigger_id: {$trigger_id}" );
@@ -407,13 +406,12 @@ class Notification_Queue {
 		$reason        = 'new_post'; // Or 'post_updated' if we distinguish
 		$object_type   = 'post';
 		$trigger_key   = 'post-post'; // Trigger key for new/updated posts of type 'post'
-		$trigger_table = 'sn_triggers'; // TODO: Get this from config/central place
 
 		// Find the trigger_id for this trigger_key
 		// A single event (like saving a post) might match multiple triggers (e.g., different channels)
 		$trigger_ids = $this->wpdb->get_col(
 			$this->wpdb->prepare(
-				"SELECT trigger_id FROM {$trigger_table} WHERE trigger_key = %s",
+				"SELECT trigger_id FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_key = %s",
 				$trigger_key
 			)
 		);
@@ -479,12 +477,11 @@ class Notification_Queue {
 			return;
 		}
 		$trigger_key   = 'comment-' . $post->post_type; // e.g., 'comment-post', 'comment-page'
-		$trigger_table = 'sn_triggers'; // TODO: Get this from config/central place
 
 		// Find the trigger_id(s) for this trigger_key
 		$trigger_ids = $this->wpdb->get_col(
 			$this->wpdb->prepare(
-				"SELECT trigger_id FROM {$trigger_table} WHERE trigger_key = %s",
+				"SELECT trigger_id FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_key = %s",
 				$trigger_key
 			)
 		);

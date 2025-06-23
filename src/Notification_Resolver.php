@@ -80,10 +80,10 @@ class Notification_Resolver {
 
 		// Prepare arguments for the query
 		$query_args = array_merge(
-			array( $blog_id, $trigger_id ),           	// for term unmute settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ),           	// for term settings
 			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
-			array( $blog_id, $trigger_id ),           	// for blog settings
-			array( $trigger_id ),                     	// for network settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id, $trigger_id ),           	// for blog settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE, $trigger_id ),                     	// for network settings
 			$potential_recipient_ids            		// final where statement user_id IN (...)
 		);
 
@@ -107,7 +107,7 @@ class Notification_Resolver {
 			-- term settings
             LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0) then unmute, if all are mute (1), then mute
                 SELECT user_id, case when MIN(mute) = 0 then 0 when min(mute) = 1 then 1 else null end as mute
-                FROM sn_scoped_settings_terms
+                FROM %i
                 WHERE blog_id = %d
                 AND trigger_id = %d
                 " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : ' AND 1=0 ' ) . "
@@ -115,12 +115,12 @@ class Notification_Resolver {
             ) term ON term.user_id = u.ID
 
 			-- blog settings
-            LEFT JOIN sn_scoped_settings_blogs blog ON blog.user_id = u.ID
+            LEFT JOIN %i blog ON blog.user_id = u.ID
                 AND blog.blog_id = %d
                 AND blog.trigger_id = %d
 
 			-- user settings
-            LEFT JOIN sn_scoped_settings_network_users network ON network.user_id = u.ID
+            LEFT JOIN %i network ON network.user_id = u.ID
                 AND network.trigger_id = %d
 
             WHERE
@@ -244,15 +244,11 @@ class Notification_Resolver {
 
 		// Prepare arguments for the query
 		$query_args = array_merge(
-			array( $blog_id, $post->ID, $trigger_id ),	// for post settings
-														//
-			array( $blog_id, $trigger_id ),           	// for term unmute settings
-			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
-														//
-			array( $blog_id, $trigger_id ),           	// for blog settings
-														//
-			array( $trigger_id ),                     	// for network settings
-														//
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS, $blog_id, $post->ID, $trigger_id ),	// for post settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ),	// for term settings
+			! empty( $term_ids ) ? $term_ids : array(), 								// for term settings term_id IN (...)
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id, $trigger_id ),  // for blog settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE, $trigger_id ),    // for network settings
 			$potential_recipient_ids            		// final where statement user_id IN (...)
 		);
 
@@ -272,7 +268,7 @@ class Notification_Resolver {
                 {$this->wpdb->users} u
 
 			-- post settings
-            LEFT JOIN sn_scoped_settings_post_comments post_comment ON post_comment.user_id = u.ID
+            LEFT JOIN %i post_comment ON post_comment.user_id = u.ID
                 AND post_comment.blog_id = %d
                 AND post_comment.post_id = %d
                 AND post_comment.trigger_id = %d
@@ -280,7 +276,7 @@ class Notification_Resolver {
 			-- term settings
             LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0) then unmute, if all are mute (1), then mute
                 SELECT user_id, case when MIN(mute) = 0 then 0 when min(mute) = 1 then 1 else null end as mute
-                FROM sn_scoped_settings_terms
+                FROM %i
                 WHERE blog_id = %d
                 AND trigger_id = %d
                 " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
@@ -288,12 +284,12 @@ class Notification_Resolver {
             ) term ON term.user_id = u.ID
 
 			-- blog settings
-            LEFT JOIN sn_scoped_settings_blogs blog ON blog.user_id = u.ID
+            LEFT JOIN %i blog ON blog.user_id = u.ID
                 AND blog.blog_id = %d
                 AND blog.trigger_id = %d
 
 			-- user settings
-            LEFT JOIN sn_scoped_settings_network_users network ON network.user_id = u.ID
+            LEFT JOIN %i network ON network.user_id = u.ID
                 AND network.trigger_id = %d
 
             WHERE
@@ -386,11 +382,8 @@ class Notification_Resolver {
 	private function get_trigger_id( string $trigger_key, string $channel ): ?int {
 		$logger = self::logger();
 
-		// Table names are hardcoded as per config/database-tables.php
-		$table_name = 'sn_triggers'; // Following pattern in this file
-
 		$sql = $this->wpdb->prepare(
-			"SELECT trigger_id FROM {$table_name} WHERE trigger_key = %s AND channel = %s",
+			"SELECT trigger_id FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_key = %s AND channel = %s",
 			$trigger_key,
 			$channel
 		);
@@ -403,7 +396,7 @@ class Notification_Resolver {
 				array(
 					'trigger_key' => $trigger_key,
 					'channel'     => $channel,
-					'table_name'  => $table_name,
+					'table_name'  => SCOPED_NOTIFY_TABLE_TRIGGERS,
 				)
 			);
 			return null;

@@ -13,14 +13,7 @@ namespace Scoped_Notify;
 class User_Preferences {
 	use Static_Logger_Trait;
 
-	const TABLE_NETWORK_SETTINGS = 'sn_scoped_settings_network_users';
-	const TABLE_BLOG_SETTINGS    = 'sn_scoped_settings_blogs';
-	const TABLE_POST_SETTINGS    = 'sn_scoped_settings_post_comments';
-	const TABLE_TRIGGERS         = 'sn_triggers';
-
 	const CHANNEL = 'mail';
-
-	const DEFAULT_PREFERENCE = Notification_Preference::Posts_And_Comments;
 
 	public static function get_network_preference( int $user_id ): Notification_Preference {
 		$pref = self::get(
@@ -29,7 +22,7 @@ class User_Preferences {
 		);
 
 		if ( null === $pref) {
-			return DEFAULT_PREFERENCE
+			return SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE ? Notification_Preference::Posts_And_Comments : Notification_Preference::No_Notifications;
 		}
 		else {
 			return $pref;
@@ -92,11 +85,12 @@ class User_Preferences {
 
 		// Prepare arguments for the query
 		$query_args = array_merge(
-			array($trigger_key),
-			array( $blog_id, $post->ID,  ),	// for post settings
-			array( $blog_id ),           	// for term unmute settings
+			array(SCOPED_NOTIFY_TABLE_TRIGGERS,$trigger_key),
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS, $blog_id, $post->ID,  ),	// for post settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id ),           	// for term settings
 			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
-			array( $blog_id ),           	// for blog settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id ),           	// for blog settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE ),					// network settings
 			array($user_id)
 		);
 
@@ -114,10 +108,10 @@ class User_Preferences {
             FROM
                 {$wpdb->users} u
 
-			JOIN sn_triggers t on t.trigger_key = %s
+			JOIN %i t on t.trigger_key = %s
 
 			-- post settings
-            LEFT JOIN sn_scoped_settings_post_comments post_comment ON post_comment.user_id = u.ID
+            LEFT JOIN %i post_comment ON post_comment.user_id = u.ID
                 AND post_comment.blog_id = %d
                 AND post_comment.post_id = %d
                 AND post_comment.trigger_id = t.trigger_id
@@ -125,19 +119,19 @@ class User_Preferences {
 			-- term settings
             LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0) then unmute, if all are mute (1), then mute
                 SELECT user_id, trigger_id, case when MIN(mute) = 0 then 0 when min(mute) = 1 then 1 else null end as mute
-                FROM sn_scoped_settings_terms
+                FROM %i
                 WHERE blog_id = %d
                 " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
                 GROUP BY user_id, trigger_id
             ) term ON term.user_id = u.ID and term.trigger_id = t.trigger_id
 
 			-- blog settings
-            LEFT JOIN sn_scoped_settings_blogs blog ON blog.user_id = u.ID
+            LEFT JOIN %i blog ON blog.user_id = u.ID
                 AND blog.blog_id = %d
                 AND blog.trigger_id = t.trigger_id
 
 			-- user settings
-            LEFT JOIN sn_scoped_settings_network_users network ON network.user_id = u.ID
+            LEFT JOIN %i network ON network.user_id = u.ID
                 AND network.trigger_id = t.trigger_id
 
             WHERE
@@ -197,7 +191,7 @@ class User_Preferences {
 		// get preference
 		$where = '';
 		$args  = array(
-			self::TABLE_TRIGGERS,
+			SCOPED_NOTIFY_TABLE_TRIGGERS,
 			$table,
 			$user_id,
 			self::CHANNEL,
@@ -353,9 +347,9 @@ class User_Preferences {
 
 	private static function get_table_name( Scope $scope ): string|null {
 		return match ( $scope ) {
-			Scope::Network => self::TABLE_NETWORK_SETTINGS,
-			Scope::Blog    => self::TABLE_BLOG_SETTINGS,
-			Scope::Post    => self::TABLE_POST_SETTINGS,
+			Scope::Network => SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE,
+			Scope::Blog    => SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS,
+			Scope::Post    => SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS,
 			default        => null,
 		};
 	}
@@ -366,7 +360,7 @@ class User_Preferences {
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				'select trigger_id, trigger_key from %i where channel = %s',
-				self::TABLE_TRIGGERS,
+				SCOPED_NOTIFY_TABLE_TRIGGERS,
 				self::CHANNEL,
 			)
 		);

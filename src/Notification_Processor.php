@@ -44,7 +44,7 @@ class Notification_Processor {
 	}
 
 	/**
-	 * Processes pending notifications from the `sn_queue` table.
+	 * Processes pending notifications from the SCOPED_NOTIFY_TABLE_QUEUE table.
 	 *
 	 * Selects notifications that are pending and due to be sent (either immediate or scheduled time is past).
 	 * Notifications are grouped by content, and a single email is sent for each set of contents, with all recipients
@@ -160,12 +160,9 @@ class Notification_Processor {
 	private function get_channel_for_trigger( int $trigger_id ): ?string {
 		$logger = self::logger();
 
-		// Assuming 'sn_triggers' is the correct table name.
-		// You might want to pass this table name via the constructor like the notifications table.
-		$triggers_table = 'sn_triggers'; // TODO: Consider making this configurable
 		$channel        = $this->wpdb->get_var(
 			$this->wpdb->prepare(
-				"SELECT channel FROM {$triggers_table} WHERE trigger_id = %d",
+				"SELECT channel FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_id = %d",
 				$trigger_id
 			)
 		);
@@ -179,7 +176,7 @@ class Notification_Processor {
 	}
 
 	/**
-	 * Processes a single notification item from the `sn_queue` table.
+	 * Processes a single notification item from the SCOPED_NOTIFY_TABLE_QUEUE table.
 	 *
 	 * @param \stdClass $item The notification item data from the database.
 	 * @param Arrays $users The list of users to whom the notification is sent
@@ -400,7 +397,7 @@ class Notification_Processor {
 	 *
 	 * @param Array                   $user_emails   The recipient user object.
 	 * @param \WP_Post|\WP_Comment|mixed $object The triggering object.
-	 * @param \stdClass                  $item   The notification item from `sn_queue`.
+	 * @param \stdClass                  $item   The notification item from SCOPED_NOTIFY_TABLE_QUEUE.
 	 * @return bool True if sending was successful, false otherwise.
 	 */
 	private function send_mail_notification( Array $user_emails, $object, \stdClass $item ): bool {

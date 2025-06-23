@@ -20,11 +20,20 @@ define( 'SCOPED_NOTIFY_VERSION', '0.1.1' ); // Incremented version to trigger DB
 define( 'SCOPED_NOTIFY_PLUGIN_FILE', __FILE__ );
 define( 'SCOPED_NOTIFY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOPED_NOTIFY_DB_VERSION_OPTION', 'scoped_notify_db_version' );
-define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' );
-define( 'SCOPED_NOTIFY_NOREPLY_EMAIL', 'scoped_notify_noreplay_email' );
+define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' ); // how many email adresses to use in bcc:
+define( 'SCOPED_NOTIFY_EMAIL_TO_ADDRESS', 'scoped_notify_email_to_address' ); // the to-adress for the mails
 define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cron hook name.
 
-define( 'SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE', true);
+define( 'SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE', true); // the default notification
+
+// define table names as constants
+define( 'SCOPED_NOTIFY_TABLE_TRIGGERS', "scoped_notify_triggers");
+define( 'SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES', "scoped_notify_user_blog_schedules");
+define( 'SCOPED_NOTIFY_TABLE_QUEUE', "scoped_notify_queue");
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE', "scoped_notify_settings_user_profile");
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS', "scoped_notify_settings_blogs");
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_TERMS', "scoped_notify_settings_terms");
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', "scoped_notify_settings_post_comments");
 
 // Include Composer autoloader if it exists.
 if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
@@ -149,7 +158,7 @@ function activate_plugin() {
 	}
 
 	\add_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 400 );
-	\add_site_option( SCOPED_NOTIFY_NOREPLY_EMAIL, '' );
+	\add_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS, '' );
 
 	try {
 		$config_file = SCOPED_NOTIFY_PLUGIN_DIR . 'config/database-tables.php';
@@ -166,14 +175,13 @@ function activate_plugin() {
 		$db_manager->install(); // Creates tables if they don't exist.
 
 		// --- Add Default Triggers ---
-		$trigger_table_name = 'sn_triggers'; // Direct table name as per config
 		$default_triggers   = array( 'post-post', 'comment-post' );
 
 		foreach ( $default_triggers as $trigger_key ) {
 			// Check if trigger already exists
 			$exists = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT trigger_id FROM `{$trigger_table_name}` WHERE trigger_key = %s AND channel = %s",
+					"SELECT trigger_id FROM `".SCOPED_NOTIFY_TABLE_TRIGGERS."` WHERE trigger_key = %s AND channel = %s",
 					$trigger_key,
 					'mail' // Assuming default channel is 'mail'
 				)
@@ -181,7 +189,7 @@ function activate_plugin() {
 
 			if ( null === $exists ) {
 				$inserted = $wpdb->insert(
-					$trigger_table_name,
+					SCOPED_NOTIFY_TABLE_TRIGGERS,
 					array(
 						'trigger_key' => $trigger_key,
 						'channel'     => 'mail', // Default channel
@@ -355,7 +363,7 @@ function uninstall_plugin() {
 	// Delete options
 	\delete_site_option( SCOPED_NOTIFY_DB_VERSION_OPTION );
 	\delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE );
-	\delete_site_option( SCOPED_NOTIFY_NOREPLY_EMAIL );
+	\delete_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS );
 	$logger->info( 'Scoped Notify Uninstall: Options deleted.' );
 }
 
@@ -368,9 +376,7 @@ function process_notification_queue_cron() {
 
 	// Need to instantiate dependencies here as cron runs in a separate request context.
 	global $wpdb; // Make sure $wpdb is available.
-	// TODO: Get table name from config - Using 'sn_queue' as defined in config/database-tables.php
-	$notifications_table = 'sn_queue';
-	$processor           = new Notification_Processor( $wpdb, $notifications_table );
+	$processor           = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
 
 	try {
 		// Process a limited number of items per run.

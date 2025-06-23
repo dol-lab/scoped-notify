@@ -69,12 +69,10 @@ class Notification_Scheduler {
 
 		$schedule = self::DEFAULT_SCHEDULE_TYPE; // Default value
 		try {
-			// TODO: Get table name from config/central place
-			$schedule_table = 'sn_user_blog_schedules';
-
 			$db_schedule = $this->wpdb->get_var(
 				$this->wpdb->prepare(
-					"SELECT schedule_type FROM {$schedule_table} WHERE user_id = %d AND blog_id = %d AND channel = %s",
+					"SELECT schedule_type FROM %i WHERE user_id = %d AND blog_id = %d AND channel = %s",
+					SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES,
 					$user_id,
 					$blog_id,
 					$channel

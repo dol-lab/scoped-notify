@@ -125,10 +125,10 @@ class CLI_Command {
 				} else {
 					// Find the trigger_id first
 					$trigger_key   = 'post-' . $post->post_type;
-					$trigger_table = 'sn_triggers'; // TODO: Centralize table name
 					$trigger_id    = $wpdb->get_var(
 						$wpdb->prepare(
-							"SELECT trigger_id FROM {$trigger_table} WHERE trigger_key = %s AND channel = %s LIMIT 1",
+							"SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1",
+							SCOPED_NOTIFY_TABLE_TRIGGERS,
 							$trigger_key,
 							$channel
 						)
@@ -271,10 +271,10 @@ class CLI_Command {
 				} else {
 					// Find the trigger_id first
 					$trigger_key   = 'comment-' . $post->post_type;
-					$trigger_table = 'sn_triggers'; // TODO: Centralize table name
 					$trigger_id    = $wpdb->get_var(
 						$wpdb->prepare(
-							"SELECT trigger_id FROM {$trigger_table} WHERE trigger_key = %s AND channel = %s LIMIT 1",
+							"SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1",
+							SCOPED_NOTIFY_TABLE_TRIGGERS,
 							$trigger_key,
 							$channel
 						)
@@ -350,8 +350,7 @@ class CLI_Command {
 			global $wpdb; // Make sure $wpdb is available
 			$logger = Logger::create();
 			// TODO: Get table name from config
-			$notifications_table = 'sn_queue';
-			$processor           = new Notification_Processor( $logger, $wpdb, $notifications_table );
+			$processor           = new Notification_Processor( $logger, $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
 
 			$processed_count = $processor->process_queue( $limit );
 
