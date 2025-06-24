@@ -589,7 +589,7 @@ class Notification_Processor {
 							\esc_html( $commenter_name ),
 							\esc_html( $post_title )
 						) . '</p>';
-						$message .= '<blockquote>' . \wpautop( \esc_html( $object->comment_content ) ) . '</blockquote>';
+						$message .= '<blockquote>' . \wpautop( $object->comment_content ) . '</blockquote>';
 						break;
 					case 'mention':
 						$message .= '<p>' . \sprintf(
@@ -598,7 +598,7 @@ class Notification_Processor {
 							\esc_html( $commenter_name ),
 							\esc_html( $post_title )
 						) . '</p>';
-						$message .= '<blockquote>' . \wpautop( \esc_html( $object->comment_content ) ) . '</blockquote>';
+						$message .= '<blockquote>' . \wpautop( $object->comment_content ) . '</blockquote>';
 						break;
 					default:
 						$message .= '<p>' . \sprintf(
