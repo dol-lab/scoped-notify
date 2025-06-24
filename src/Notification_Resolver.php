@@ -171,6 +171,11 @@ class Notification_Resolver {
 			$user_id          = (int) $result->user_id;
 			$final_mute_state = $result->final_mute_state; // Can be NULL, '0', or '1'
 
+			// skip post author
+			if ($user_id === (int) $post->post_author) {
+				continue;
+			}
+
 			$is_muted = false; // Default based on rules (Specificity 5)
 			if ( $final_mute_state === null ) {
 				// No specific setting found at any level, use default
@@ -319,6 +324,11 @@ class Notification_Resolver {
 		foreach ( $results as $result ) {
 			$user_id          = (int) $result->user_id;
 			$final_mute_state = $result->final_mute_state; // Can be NULL, '0', or '1'
+
+			// skip comment author
+			if ( $user_id === (int) $comment->user_id ) {
+				continue;
+			}
 
 			$is_muted = false; // Default based on rules (Specificity 5)
 			if ( $final_mute_state === null ) {
