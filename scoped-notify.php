@@ -35,6 +35,9 @@ define( 'SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS', "scoped_notify_settings_blogs");
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_TERMS', "scoped_notify_settings_terms");
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', "scoped_notify_settings_post_comments");
 
+// this meta is used so a post can set this to "no" if no notification should be sent out when the post is written.
+define( 'SCOPED_NOTIFY_META_NOTIFY_OTHERS','scoped_notify_notify_others');
+
 // Include Composer autoloader if it exists.
 if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	require_once SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php';
@@ -76,6 +79,19 @@ add_action( 'sn_after_handle_new_comment', __NAMESPACE__ . '\process_notificatio
 // register rest endpoint
 add_action( 'rest_api_init', Rest_Api::register_routes( ... ) );
 
+register_meta(
+		'post',
+		// if this meta is set to yes, a notification is sent to users when a post is done.
+		// if this is set to no, no notification is sent on posting (but notifications are still send on comments)
+		SCOPED_NOTIFY_META_NOTIFY_OTHERS,
+		array(
+			'type'         => 'string',
+			'single'       => true,
+			'default'      => 'unknown',
+			'show_in_rest' => true,
+		)
+	);
+
 /**
  * Initialize the plugin. Load classes, add hooks.
  */
@@ -88,7 +104,8 @@ function in_plugins_loaded() {
 
 
 	// Add hooks for triggering queue additions.
-	add_action( 'save_post', array( $queue_manager, 'handle_new_post' ), 10, 2 );
+	// note: the handle_new_post function must be called after "save_post", because in save_post the meta-values are not yet set.
+	add_action( 'wp_after_insert_post', array( $queue_manager, 'handle_new_post' ), 10, 2 );
 	add_action( 'wp_insert_comment', array( $queue_manager, 'handle_new_comment' ), 10, 2 );
 
 	// Register WP-CLI command if WP_CLI is defined.
@@ -102,6 +119,7 @@ function in_plugins_loaded() {
 
 function init() {
 	$logger	= Logger::create();
+
 	$ui		= new Notification_Ui( ); // Create html for notification
 	// Load text domain for localization.
 	load_plugin_textdomain( 'scoped-notify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
