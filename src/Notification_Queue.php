@@ -381,34 +381,34 @@ class Notification_Queue {
 	public function handle_new_post( int $post_id, \WP_Post $post ) {
 		$logger = self::logger();
 
-		$logger->debug( 'post: ' . print_r( $post, true ) );
+		$logger->debug( 'Handle new post ' . print_r( $post, true ) );
 		// Basic check: only queue for specific post types if needed, e.g., 'post'
 		// TODO: Make post types configurable
 		if ( 'post' !== $post->post_type ) {
-			$logger->debug( 'wrong post type - no notifications sent' );
+			$logger->debug( 'Wrong post type - no notifications sent' );
 			return;
 		}
 
 		// TODO: make sending of private posts configurable
 		if ( 'private' !== $post->post_status && 'publish' !== $post->post_status ) {
-			$logger->debug( 'wrong post status - no notifications sent' );
+			$logger->debug( 'Wrong post status - no notifications sent' );
 			return;
 		}
 		// Avoid infinite loops if updates trigger saves
 		// Use global namespace for WordPress constants
 		if ( defined( '\DOING_AUTOSAVE' ) && \DOING_AUTOSAVE ) {
-			$logger->debug( 'autosave - no notifications sent' );
+			$logger->debug( 'Autosave - no notifications sent' );
 			return;
 		}
 		// Check if this is a revision
 		if ( wp_is_post_revision( $post_id ) ) {
-			$logger->debug( 'revision - no notifications sent' );
+			$logger->debug( 'Revision - no notifications sent' );
 			return;
 		}
 
 		// now check if postmeta SCOPED_NOTIFY_META_NOTIFY_OTHERS is set
 		if ( 'no' === get_post_meta( $post_id, SCOPED_NOTIFY_META_NOTIFY_OTHERS, true ) ) {
-			$logger->debug( "for post with id {$post_id} notifications are disabled => no notification sent" );
+			$logger->debug( "For post with id {$post_id} notifications are disabled => no notification sent" );
 			return;
 		}
 

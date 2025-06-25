@@ -37,16 +37,12 @@ class Rest_Api {
 		$logger = self::logger();
 
 		try {
-
-			// $logger->debug( 'params', array( 'params' => $request->get_params() ) );
-
 			// check if given scope exists
 			$scope = Scope::tryFrom( $request['scope'] );
 			if ( null === $scope ) {
 				$logger->warning( 'scope ' . urlencode( $request['scope'] ) . ' does not exist' );
 				return self::return_error();
 			}
-			//$logger->debug("scope: ".$scope->value);
 
 			$fields = array(
 				'user_id' => wp_get_current_user()->ID,

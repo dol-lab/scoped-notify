@@ -76,8 +76,6 @@ class Notification_Resolver {
 
 		$user_ids_placeholder = implode( ',', array_fill( 0, count( $potential_recipient_ids ), '%d' ) );
 
-		// $logger->debug("potential_recipients: ".implode(",",$potential_recipient_ids));
-
 		// Prepare arguments for the query
 		$query_args = array_merge(
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ),             // for term settings
@@ -217,7 +215,7 @@ class Notification_Resolver {
 			return array();
 		}
 
-		$logger->debug( 'fetching recipients for blog ' . $blog_id . ' and post ' . $comment->comment_post_ID );
+		$logger->debug( 'Fetching recipients for blog ' . $blog_id . ' and post ' . $comment->comment_post_ID );
 
 		$post_type = $post->post_type;
 		// Comment trigger key includes the PARENT post type
@@ -238,7 +236,7 @@ class Notification_Resolver {
 
 		$potential_recipient_ids = $this->get_blog_member_ids( $blog_id );
 		if ( empty( $potential_recipient_ids ) ) {
-			$logger->info( 'no user associated with blog with id ' . $blog_id );
+			$logger->error( 'No user associated with blog with id ' . $blog_id );
 			return array(); // No users associated with this blog.
 		}
 

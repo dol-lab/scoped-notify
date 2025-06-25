@@ -155,8 +155,6 @@ class User_Preferences {
 			throw new \Exception( 'Database error occurred while fetching notification settings for comment.' );
 		}
 
-		$logger->debug( "results 1 user id: {$user_id} blog id: {$blog_id}, post {$post_id}:", $results );
-
 		if ( count( $results ) === 0 ) {
 			// no entry found => global default
 			return SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
@@ -164,10 +162,8 @@ class User_Preferences {
 
 		// we invert the database wording "mute=1" to toggle state off=false here
 		if ( '1' === $results[0]->final_mute_state ) {
-			$logger->debug( 'final mute state: false' );
 			return false;
 		} elseif ( '0' === $results[0]->final_mute_state ) {
-			$logger->debug( 'final mute state: true' );
 			return true;
 		} else {
 			return SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
@@ -217,7 +213,7 @@ class User_Preferences {
 				$where
 			EOT;
 
-		$logger->debug( "sql statement: {$sql}", array( 'args' => $args ) );
+		// $logger->debug( "sql statement: {$sql}", array( 'args' => $args ) );
 
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ) );
 
@@ -225,7 +221,6 @@ class User_Preferences {
 			$logger->warning( 'no trigger rows found' );
 		}
 
-		$logger->debug( 'sql rows' . print_r( $rows, true ) );
 		$rows  = $rows ?? array();
 		$muted = array_merge(
 			...array_map(
@@ -234,13 +229,10 @@ class User_Preferences {
 			)
 		);
 
-		$logger->debug( 'muted', $muted );
-
 		$muted_post_post    = $muted[ Trigger_Key::Post_Post->value ] ?? null;
 		$muted_comment_post = $muted[ Trigger_Key::Comment_Post->value ] ?? null;
 
 		if ( null === $muted_post_post || null === $muted_comment_post ) {
-			$logger->debug( 'null pref found' );
 			return null;
 		}
 
@@ -254,8 +246,6 @@ class User_Preferences {
 			default => null
 		};
 
-		$logger->debug( 'get', array( 'pref' => $pref ) );
-
 		return $pref;
 	}
 
@@ -264,11 +254,9 @@ class User_Preferences {
 
 		$logger = self::logger();
 
-		$logger->debug( 'fields', $fields );
-
 		$table = self::get_table_name( $scope );
 		if ( null === $table ) {
-			$logger->error( "could not get table name for scope {$scope->value}" );
+			$logger->error( "Could not get table name for scope {$scope->value}" );
 			return false;
 		}
 
@@ -300,7 +288,7 @@ class User_Preferences {
 				'mute'       => $value,
 			);
 
-			$logger->debug( 'insert data', $data );
+			$logger->debug( 'Insert or update preference data', $data );
 
 			// insert or update preference
 			$count = $wpdb->replace( $table, $data, '%d' );
@@ -309,7 +297,7 @@ class User_Preferences {
 				return false;
 			}
 
-			$logger->debug( "updated or inserted {$count} rows" );
+			$logger->debug( "Updated or inserted {$count} rows" );
 		}
 
 		return true;
@@ -320,11 +308,9 @@ class User_Preferences {
 
 		$logger = self::logger();
 
-		$logger->debug( 'fields', $fields );
-
 		$table = self::get_table_name( $scope );
 		if ( null === $table ) {
-			$logger->error( "could not get table name for scope {$scope->value}" );
+			$logger->error( "Could not get table name for scope {$scope->value}" );
 			return false;
 		}
 
@@ -332,12 +318,12 @@ class User_Preferences {
 			...$fields,
 		);
 
-		$logger->debug( 'remove entries data', $data );
+		$logger->debug( 'Try to remove preference data', $data );
 
-		// insert or update preference
+		// delete preference
 		$count = $wpdb->delete( $table, $data, '%d' );
 
-		$logger->debug( "deleted {$count} rows" );
+		$logger->debug( "Deleted {$count} rows" );
 
 		return true;
 	}
