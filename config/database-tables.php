@@ -72,7 +72,7 @@ return array(
             KEY `user_status_schedule` (`user_id`, `status`, `scheduled_send_time`),
             KEY `status_schedule` (`status`, `scheduled_send_time`),
             KEY `object_info` (`object_type`, `object_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 	/**
@@ -95,7 +95,7 @@ return array(
             {columns_create},
             PRIMARY KEY (`user_id`, `trigger_id`),
             KEY `user_id` (`user_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 	array(
@@ -114,7 +114,7 @@ return array(
             {columns_create},
             PRIMARY KEY (`blog_id`, `user_id`, `trigger_id`),
             KEY `user_id` (`user_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 	array(
@@ -135,7 +135,7 @@ return array(
             PRIMARY KEY (`blog_id`, `user_id`, `term_id`, `trigger_id`),
             KEY `user_id` (`user_id`),
             KEY `term_lookup` (`blog_id`, `term_id`, `trigger_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 	array(
@@ -156,7 +156,7 @@ return array(
             PRIMARY KEY (`blog_id`, `post_id`, `user_id`, `trigger_id`),
             KEY `user_id` (`user_id`),
             KEY `post_lookup` (`blog_id`, `post_id`, `trigger_id`),
-            FOREIGN KEY (`trigger_id`) REFERENCES `'.SCOPED_NOTIFY_TABLE_TRIGGERS.'` (`trigger_id`) ON DELETE CASCADE
+            FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
 );

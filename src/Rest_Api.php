@@ -41,9 +41,9 @@ class Rest_Api {
 			// $logger->debug( 'params', array( 'params' => $request->get_params() ) );
 
 			// check if given scope exists
-			$scope  = Scope::tryFrom( $request['scope'] );
-			if (null === $scope) {
-				$logger->warning("scope ".urlencode($request['scope'])." does not exist");
+			$scope = Scope::tryFrom( $request['scope'] );
+			if ( null === $scope ) {
+				$logger->warning( 'scope ' . urlencode( $request['scope'] ) . ' does not exist' );
 				return self::return_error();
 			}
 			//$logger->debug("scope: ".$scope->value);
@@ -61,34 +61,29 @@ class Rest_Api {
 			}
 
 			// check if preference should be set back to default
-			if ("use-default" === $request['value']) {
+			if ( 'use-default' === $request['value'] ) {
 				$args = array(
 					'scope'  => $scope,
 					'fields' => $fields,
 				);
 
 				$res = User_Preferences::remove( ...$args );
-			}
-			else {
+			} else {
 
 				if ( ( 'post' === $scope->value ) && ( 'activate-notifications' === $request['value'] ) ) {
 					$preference = Notification_Preference::Posts_And_Comments;
-				}
-				elseif ( ( 'post' === $scope->value ) && ( 'deactivate-notifications' === $request['value'] ) ) {
+				} elseif ( ( 'post' === $scope->value ) && ( 'deactivate-notifications' === $request['value'] ) ) {
 					$preference = Notification_Preference::No_Notifications;
-				}
-				elseif ( 'post' === $scope->value ) {
-					$logger->warning("notification preference ".urlencode($request['value'])." does not exist for scope post");
+				} elseif ( 'post' === $scope->value ) {
+					$logger->warning( 'notification preference ' . urlencode( $request['value'] ) . ' does not exist for scope post' );
 					return self::return_error();
-				}
-				else {
+				} else {
 
-					$preference  = Notification_Preference::tryFrom( $request['value'] );
-					if (null === $preference) {
-						$logger->warning("notification preference ".urlencode($request['value'])." does not exist for scope ".$scope->value);
+					$preference = Notification_Preference::tryFrom( $request['value'] );
+					if ( null === $preference ) {
+						$logger->warning( 'notification preference ' . urlencode( $request['value'] ) . ' does not exist for scope ' . $scope->value );
 						return self::return_error();
 					}
-
 				}
 				$args = array(
 					'scope'  => $scope,
@@ -106,9 +101,8 @@ class Rest_Api {
 					)
 				)
 			);
-		}
-		catch ( \Exception $e ) {
-			$logger->error("an uncaught error occured while executing rest API: ".$e->getMessage());
+		} catch ( \Exception $e ) {
+			$logger->error( 'an uncaught error occured while executing rest API: ' . $e->getMessage() );
 			return self::return_error();
 		}
 	}

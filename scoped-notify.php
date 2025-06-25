@@ -24,19 +24,19 @@ define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' ); // h
 define( 'SCOPED_NOTIFY_EMAIL_TO_ADDRESS', 'scoped_notify_email_to_address' ); // the to-adress for the mails
 define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cron hook name.
 
-define( 'SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE', true); // the default notification
+define( 'SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE', true ); // the default notification
 
 // define table names as constants
-define( 'SCOPED_NOTIFY_TABLE_TRIGGERS', "scoped_notify_triggers");
-define( 'SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES', "scoped_notify_user_blog_schedules");
-define( 'SCOPED_NOTIFY_TABLE_QUEUE', "scoped_notify_queue");
-define( 'SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE', "scoped_notify_settings_user_profile");
-define( 'SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS', "scoped_notify_settings_blogs");
-define( 'SCOPED_NOTIFY_TABLE_SETTINGS_TERMS', "scoped_notify_settings_terms");
-define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', "scoped_notify_settings_post_comments");
+define( 'SCOPED_NOTIFY_TABLE_TRIGGERS', 'scoped_notify_triggers' );
+define( 'SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES', 'scoped_notify_user_blog_schedules' );
+define( 'SCOPED_NOTIFY_TABLE_QUEUE', 'scoped_notify_queue' );
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE', 'scoped_notify_settings_user_profile' );
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS', 'scoped_notify_settings_blogs' );
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_TERMS', 'scoped_notify_settings_terms' );
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_post_comments' );
 
 // this meta is used so a post can set this to "no" if no notification should be sent out when the post is written.
-define( 'SCOPED_NOTIFY_META_NOTIFY_OTHERS','scoped_notify_notify_others');
+define( 'SCOPED_NOTIFY_META_NOTIFY_OTHERS', 'scoped_notify_notify_others' );
 
 // Include Composer autoloader if it exists.
 if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
@@ -80,17 +80,17 @@ add_action( 'sn_after_handle_new_comment', __NAMESPACE__ . '\process_notificatio
 add_action( 'rest_api_init', Rest_Api::register_routes( ... ) );
 
 register_meta(
-		'post',
-		// if this meta is set to yes, a notification is sent to users when a post is done.
+	'post',
+	// if this meta is set to yes, a notification is sent to users when a post is done.
 		// if this is set to no, no notification is sent on posting (but notifications are still send on comments)
 		SCOPED_NOTIFY_META_NOTIFY_OTHERS,
-		array(
-			'type'         => 'string',
-			'single'       => true,
-			'default'      => 'unknown',
-			'show_in_rest' => true,
-		)
-	);
+	array(
+		'type'         => 'string',
+		'single'       => true,
+		'default'      => 'unknown',
+		'show_in_rest' => true,
+	)
+);
 
 /**
  * Initialize the plugin. Load classes, add hooks.
@@ -101,7 +101,6 @@ function in_plugins_loaded() {
 	$resolver      = new Notification_Resolver( $wpdb );
 	$scheduler     = new Notification_Scheduler( $wpdb ); // Instantiate scheduler
 	$queue_manager = new Notification_Queue( $resolver, $scheduler, $wpdb ); // Pass scheduler
-
 
 	// Add hooks for triggering queue additions.
 	// note: the handle_new_post function must be called after "save_post", because in save_post the meta-values are not yet set.
@@ -118,20 +117,20 @@ function in_plugins_loaded() {
 
 
 function init() {
-	$logger	= Logger::create();
+	$logger = Logger::create();
 
-	$ui		= new Notification_Ui( ); // Create html for notification
+	$ui = new Notification_Ui(); // Create html for notification
 	// Load text domain for localization.
 	load_plugin_textdomain( 'scoped-notify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
 
 	// add blog_settings to defaulttheme sidebar
-	add_filter( 'default_space_setting', 					array( $ui, 'add_blog_settings_item' ) );
+	add_filter( 'default_space_setting', array( $ui, 'add_blog_settings_item' ) );
 
 	// add comment_settings to dropdown in post card
-	add_filter( 'ds_post_dot_menu_data', 					array( $ui, 'add_comment_settings_item' ), 10, 2 );
+	add_filter( 'ds_post_dot_menu_data', array( $ui, 'add_comment_settings_item' ), 10, 2 );
 
 	// add network settings to drop down in the sidebar on the user's own profile page
-	add_filter( 'ds_child_member_profile_dot_menu_data',	array( $ui, 'add_network_settings_item' ), 8, 1 );
+	add_filter( 'ds_child_member_profile_dot_menu_data', array( $ui, 'add_network_settings_item' ), 8, 1 );
 
 	// this shortcode is used in a sidebar widget in shared_home blog, keeping the name from the previous plugin
 	// go to the dashboard of the shared_home blog, select appearance / widget.
@@ -141,21 +140,25 @@ function init() {
 	add_shortcode( 'get_notification_toggle_switch', array( $ui, 'get_notification_toggle_switch' ) );
 }
 
-function enqueue_scripts(){
+function enqueue_scripts() {
 	$plugin_dir = plugin_dir_url( __DIR__ ) . 'scoped-notify';
-	wp_register_style( 'scoped-notify', $plugin_dir  . '/css/scoped-notify.css', array(), SCOPED_NOTIFY_VERSION );
+	wp_register_style( 'scoped-notify', $plugin_dir . '/css/scoped-notify.css', array(), SCOPED_NOTIFY_VERSION );
 	wp_enqueue_style( 'scoped-notify' );
 
 	wp_register_script( 'scoped-notify', $plugin_dir . '/js/scoped-notify.js', array( 'jquery' ), null, false );
 
-	wp_localize_script( 'scoped-notify', 'data', [
-		'rest' => [
-			// The rest_url function relies on the $wp_rewrite global class when pretty permalinks are enabled, which isn't available as early as the plugins_loaded action, but should instead be used with either the init or wp hook.
-			'endpoint' => esc_url_raw( rest_url( Rest_Api::NAMESPACE . Rest_Api::ROUTE_SETTINGS ) ),
-			'timeout'   => (int) apply_filters( "scoped_notify_rest_timeout", 3000 ),
-			'nonce'     => wp_create_nonce( 'wp_rest' ),
-		],
-	] );
+	wp_localize_script(
+		'scoped-notify',
+		'data',
+		array(
+			'rest' => array(
+				// The rest_url function relies on the $wp_rewrite global class when pretty permalinks are enabled, which isn't available as early as the plugins_loaded action, but should instead be used with either the init or wp hook.
+				'endpoint' => esc_url_raw( rest_url( Rest_Api::NAMESPACE . Rest_Api::ROUTE_SETTINGS ) ),
+				'timeout'  => (int) apply_filters( 'scoped_notify_rest_timeout', 3000 ),
+				'nonce'    => wp_create_nonce( 'wp_rest' ),
+			),
+		)
+	);
 
 	wp_enqueue_script( 'scoped-notify' );
 }
@@ -193,13 +196,13 @@ function activate_plugin() {
 		$db_manager->install(); // Creates tables if they don't exist.
 
 		// --- Add Default Triggers ---
-		$default_triggers   = array( 'post-post', 'comment-post' );
+		$default_triggers = array( 'post-post', 'comment-post' );
 
 		foreach ( $default_triggers as $trigger_key ) {
 			// Check if trigger already exists
 			$exists = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT trigger_id FROM `".SCOPED_NOTIFY_TABLE_TRIGGERS."` WHERE trigger_key = %s AND channel = %s",
+					'SELECT trigger_id FROM `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` WHERE trigger_key = %s AND channel = %s',
 					$trigger_key,
 					'mail' // Assuming default channel is 'mail'
 				)
@@ -394,7 +397,7 @@ function process_notification_queue_cron() {
 
 	// Need to instantiate dependencies here as cron runs in a separate request context.
 	global $wpdb; // Make sure $wpdb is available.
-	$processor           = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
+	$processor = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
 
 	try {
 		// Process a limited number of items per run.

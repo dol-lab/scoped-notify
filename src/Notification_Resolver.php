@@ -32,10 +32,10 @@ class Notification_Resolver {
 	/**
 	 * Constructor.
 	 *
-	 * @param \wpdb                $wpdb   WordPress database object.
+	 * @param \wpdb $wpdb   WordPress database object.
 	 */
 	public function __construct( \wpdb $wpdb ) {
-		$this->wpdb   = $wpdb;
+		$this->wpdb = $wpdb;
 	}
 
 	/**
@@ -66,11 +66,11 @@ class Notification_Resolver {
 
 		$potential_recipient_ids = $this->get_blog_member_ids( $blog_id );
 		if ( empty( $potential_recipient_ids ) ) {
-			$logger->info("no user associated with blog with id " . $blog_id);
+			$logger->info( 'no user associated with blog with id ' . $blog_id );
 			return array(); // No users associated with this blog.
 		}
 
-		$object_taxonomies		= \get_object_taxonomies( $post_type );
+		$object_taxonomies    = \get_object_taxonomies( $post_type );
 		$term_ids             = \wp_get_post_terms( $post->ID, $object_taxonomies, array( 'fields' => 'ids' ) );
 		$term_ids_placeholder = ! empty( $term_ids ) ? implode( ',', array_fill( 0, count( $term_ids ), '%d' ) ) : 'NULL';
 
@@ -80,11 +80,11 @@ class Notification_Resolver {
 
 		// Prepare arguments for the query
 		$query_args = array_merge(
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ),           	// for term settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ),             // for term settings
 			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id, $trigger_id ),           	// for blog settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE, $trigger_id ),                     	// for network settings
-			$potential_recipient_ids            		// final where statement user_id IN (...)
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id, $trigger_id ),             // for blog settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE, $trigger_id ),                        // for network settings
+			$potential_recipient_ids                    // final where statement user_id IN (...)
 		);
 
 		// This query fetches all relevant settings for all potential users in one go.
@@ -172,7 +172,7 @@ class Notification_Resolver {
 			$final_mute_state = $result->final_mute_state; // Can be NULL, '0', or '1'
 
 			// skip post author
-			if ($user_id === (int) $post->post_author) {
+			if ( $user_id === (int) $post->post_author ) {
 				continue;
 			}
 
@@ -217,7 +217,7 @@ class Notification_Resolver {
 			return array();
 		}
 
-		$logger->debug("fetching recipients for blog " . $blog_id . " and post " . $comment->comment_post_ID);
+		$logger->debug( 'fetching recipients for blog ' . $blog_id . ' and post ' . $comment->comment_post_ID );
 
 		$post_type = $post->post_type;
 		// Comment trigger key includes the PARENT post type
@@ -238,7 +238,7 @@ class Notification_Resolver {
 
 		$potential_recipient_ids = $this->get_blog_member_ids( $blog_id );
 		if ( empty( $potential_recipient_ids ) ) {
-			$logger->info("no user associated with blog with id " . $blog_id);
+			$logger->info( 'no user associated with blog with id ' . $blog_id );
 			return array(); // No users associated with this blog.
 		}
 
@@ -249,12 +249,12 @@ class Notification_Resolver {
 
 		// Prepare arguments for the query
 		$query_args = array_merge(
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS, $blog_id, $post->ID, $trigger_id ),	// for post settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ),	// for term settings
-			! empty( $term_ids ) ? $term_ids : array(), 								// for term settings term_id IN (...)
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS, $blog_id, $post->ID, $trigger_id ),  // for post settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ), // for term settings
+			! empty( $term_ids ) ? $term_ids : array(),                                 // for term settings term_id IN (...)
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id, $trigger_id ),  // for blog settings
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE, $trigger_id ),    // for network settings
-			$potential_recipient_ids            		// final where statement user_id IN (...)
+			$potential_recipient_ids                    // final where statement user_id IN (...)
 		);
 
 		// Query logic similar to posts, but includes the post-specific setting as highest priority.
@@ -393,7 +393,7 @@ class Notification_Resolver {
 		$logger = self::logger();
 
 		$sql = $this->wpdb->prepare(
-			"SELECT trigger_id FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_key = %s AND channel = %s",
+			'SELECT trigger_id FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_key = %s AND channel = %s',
 			$trigger_key,
 			$channel
 		);

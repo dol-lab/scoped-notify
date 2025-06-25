@@ -111,8 +111,8 @@ class Notification_Queue {
 		$queued_count = 0;
 		try {
 			// 1. Get Channel from Trigger
-			$trigger       = $this->wpdb->get_row(
-				$this->wpdb->prepare( "SELECT channel FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_id = %d", $trigger_id )
+			$trigger = $this->wpdb->get_row(
+				$this->wpdb->prepare( 'SELECT channel FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_id = %d', $trigger_id )
 			);
 			if ( ! $trigger || empty( $trigger->channel ) ) {
 				throw new \Exception( "Could not find trigger or channel for trigger_id: {$trigger_id}" );
@@ -381,34 +381,34 @@ class Notification_Queue {
 	public function handle_new_post( int $post_id, \WP_Post $post ) {
 		$logger = self::logger();
 
-		$logger->debug("post: ".print_r($post,true));
+		$logger->debug( 'post: ' . print_r( $post, true ) );
 		// Basic check: only queue for specific post types if needed, e.g., 'post'
 		// TODO: Make post types configurable
 		if ( 'post' !== $post->post_type ) {
-			$logger->debug("wrong post type - no notifications sent");
+			$logger->debug( 'wrong post type - no notifications sent' );
 			return;
 		}
 
 		// TODO: make sending of private posts configurable
 		if ( 'private' !== $post->post_status && 'publish' !== $post->post_status ) {
-			$logger->debug("wrong post status - no notifications sent");
+			$logger->debug( 'wrong post status - no notifications sent' );
 			return;
 		}
 		// Avoid infinite loops if updates trigger saves
 		// Use global namespace for WordPress constants
 		if ( defined( '\DOING_AUTOSAVE' ) && \DOING_AUTOSAVE ) {
-			$logger->debug("autosave - no notifications sent");
+			$logger->debug( 'autosave - no notifications sent' );
 			return;
 		}
 		// Check if this is a revision
 		if ( wp_is_post_revision( $post_id ) ) {
-			$logger->debug("revision - no notifications sent");
+			$logger->debug( 'revision - no notifications sent' );
 			return;
 		}
 
 		// now check if postmeta SCOPED_NOTIFY_META_NOTIFY_OTHERS is set
-		if ( "no" === get_post_meta( $post_id, SCOPED_NOTIFY_META_NOTIFY_OTHERS, true ) ) {
-			$logger->debug("for post with id {$post_id} notifications are disabled => no notification sent");
+		if ( 'no' === get_post_meta( $post_id, SCOPED_NOTIFY_META_NOTIFY_OTHERS, true ) ) {
+			$logger->debug( "for post with id {$post_id} notifications are disabled => no notification sent" );
 			return;
 		}
 
@@ -418,16 +418,16 @@ class Notification_Queue {
 		// For 'save_post', we might queue on every update of a published post. Let's assume that's okay for now.
 		// If only needed on first publish, hook 'publish_post' or check status transition.
 
-		$blog_id       = \get_current_blog_id();
-		$reason        = 'new_post'; // Or 'post_updated' if we distinguish
-		$object_type   = 'post';
-		$trigger_key   = 'post-post'; // Trigger key for new/updated posts of type 'post'
+		$blog_id     = \get_current_blog_id();
+		$reason      = 'new_post'; // Or 'post_updated' if we distinguish
+		$object_type = 'post';
+		$trigger_key = 'post-post'; // Trigger key for new/updated posts of type 'post'
 
 		// Find the trigger_id for this trigger_key
 		// A single event (like saving a post) might match multiple triggers (e.g., different channels)
 		$trigger_ids = $this->wpdb->get_col(
 			$this->wpdb->prepare(
-				"SELECT trigger_id FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_key = %s",
+				'SELECT trigger_id FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_key = %s',
 				$trigger_key
 			)
 		);
@@ -492,12 +492,12 @@ class Notification_Queue {
 			);
 			return;
 		}
-		$trigger_key   = 'comment-' . $post->post_type; // e.g., 'comment-post', 'comment-page'
+		$trigger_key = 'comment-' . $post->post_type; // e.g., 'comment-post', 'comment-page'
 
 		// Find the trigger_id(s) for this trigger_key
 		$trigger_ids = $this->wpdb->get_col(
 			$this->wpdb->prepare(
-				"SELECT trigger_id FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_key = %s",
+				'SELECT trigger_id FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_key = %s',
 				$trigger_key
 			)
 		);

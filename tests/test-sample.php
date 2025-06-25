@@ -24,7 +24,5 @@ class SampleTest extends PHPUnit\Framework\TestCase {
 	public function test_sample() {
 		// Replace this with some actual testing code.
 		$this->assertTrue( true );
-
 	}
-
 }

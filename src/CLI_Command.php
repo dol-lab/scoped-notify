@@ -124,10 +124,10 @@ class CLI_Command {
 					\WP_CLI::success( "[Dry Run] Would queue notifications for Post ID {$post_id}, Channel '{$channel}', Reason '{$reason}'." ); // Use FQN
 				} else {
 					// Find the trigger_id first
-					$trigger_key   = 'post-' . $post->post_type;
-					$trigger_id    = $wpdb->get_var(
+					$trigger_key = 'post-' . $post->post_type;
+					$trigger_id  = $wpdb->get_var(
 						$wpdb->prepare(
-							"SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1",
+							'SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1',
 							SCOPED_NOTIFY_TABLE_TRIGGERS,
 							$trigger_key,
 							$channel
@@ -270,10 +270,10 @@ class CLI_Command {
 					\WP_CLI::success( "[Dry Run] Would queue notifications for Comment ID {$comment_id}, Channel '{$channel}', Reason '{$reason}'." ); // Use FQN
 				} else {
 					// Find the trigger_id first
-					$trigger_key   = 'comment-' . $post->post_type;
-					$trigger_id    = $wpdb->get_var(
+					$trigger_key = 'comment-' . $post->post_type;
+					$trigger_id  = $wpdb->get_var(
 						$wpdb->prepare(
-							"SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1",
+							'SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1',
 							SCOPED_NOTIFY_TABLE_TRIGGERS,
 							$trigger_key,
 							$channel
@@ -350,7 +350,7 @@ class CLI_Command {
 			global $wpdb; // Make sure $wpdb is available
 			$logger = Logger::create();
 			// TODO: Get table name from config
-			$processor           = new Notification_Processor( $logger, $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
+			$processor = new Notification_Processor( $logger, $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
 
 			$processed_count = $processor->process_queue( $limit );
 

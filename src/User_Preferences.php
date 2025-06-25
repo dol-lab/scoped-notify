@@ -21,10 +21,9 @@ class User_Preferences {
 			$user_id,
 		);
 
-		if ( null === $pref) {
+		if ( null === $pref ) {
 			return SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE ? Notification_Preference::Posts_And_Comments : Notification_Preference::No_Notifications;
-		}
-		else {
+		} else {
 			return $pref;
 		}
 	}
@@ -67,13 +66,13 @@ class User_Preferences {
 
 		// Note: the sql code is quite similar to Notification_Resolver, might be worth to refactor in the future to extract common code
 
-		$post    = \get_post( $post_id );
+		$post = \get_post( $post_id );
 		if ( ! $post ) {
 			$logger->error(
 				'Could not find post {post_id}.',
 				array( 'post_id' => $post_id )
 			);
-			throw new \Exception( "Could not find post" );
+			throw new \Exception( 'Could not find post' );
 		}
 
 		$post_type = $post->post_type;
@@ -85,13 +84,13 @@ class User_Preferences {
 
 		// Prepare arguments for the query
 		$query_args = array_merge(
-			array(SCOPED_NOTIFY_TABLE_TRIGGERS,$trigger_key),
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS, $blog_id, $post->ID,  ),	// for post settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id ),           	// for term settings
+			array( SCOPED_NOTIFY_TABLE_TRIGGERS, $trigger_key ),
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS, $blog_id, $post->ID ), // for post settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id ),              // for term settings
 			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id ),           	// for blog settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE ),					// network settings
-			array($user_id)
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id ),              // for blog settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE ),                 // network settings
+			array( $user_id )
 		);
 
 		// Query logic similar to posts, but includes the post-specific setting as highest priority.
@@ -121,7 +120,7 @@ class User_Preferences {
                 SELECT user_id, trigger_id, case when MIN(mute) = 0 then 0 when min(mute) = 1 then 1 else null end as mute
                 FROM %i
                 WHERE blog_id = %d
-                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . "
+                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . '
                 GROUP BY user_id, trigger_id
             ) term ON term.user_id = u.ID and term.trigger_id = t.trigger_id
 
@@ -136,7 +135,7 @@ class User_Preferences {
 
             WHERE
                 u.ID = %d
-        ";
+        ';
 
 		$prepared_sql = $wpdb->prepare( $sql, $query_args );
 		$results      = $wpdb->get_results( $prepared_sql );
@@ -153,26 +152,24 @@ class User_Preferences {
 					'blog_id'    => $blog_id,
 				)
 			);
-			throw new \Exception( "Database error occurred while fetching notification settings for comment." );
+			throw new \Exception( 'Database error occurred while fetching notification settings for comment.' );
 		}
 
-		$logger->debug("results 1 user id: {$user_id} blog id: {$blog_id}, post {$post_id}:", $results);
+		$logger->debug( "results 1 user id: {$user_id} blog id: {$blog_id}, post {$post_id}:", $results );
 
-		if (count( $results) === 0) {
+		if ( count( $results ) === 0 ) {
 			// no entry found => global default
 			return SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
 		}
 
 		// we invert the database wording "mute=1" to toggle state off=false here
 		if ( '1' === $results[0]->final_mute_state ) {
-			$logger->debug("final mute state: false");
+			$logger->debug( 'final mute state: false' );
 			return false;
-		}
-		elseif ( '0' === $results[0]->final_mute_state ) {
-			$logger->debug("final mute state: true");
+		} elseif ( '0' === $results[0]->final_mute_state ) {
+			$logger->debug( 'final mute state: true' );
 			return true;
-		}
-		else {
+		} else {
 			return SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
 		}
 	}
@@ -224,12 +221,12 @@ class User_Preferences {
 
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ) );
 
-		if (count($rows) === 0) {
-			$logger->warning("no trigger rows found");
+		if ( count( $rows ) === 0 ) {
+			$logger->warning( 'no trigger rows found' );
 		}
 
-		$logger->debug( "sql rows" . print_r($rows,true) );
-		$rows = $rows ?? array();
+		$logger->debug( 'sql rows' . print_r( $rows, true ) );
+		$rows  = $rows ?? array();
 		$muted = array_merge(
 			...array_map(
 				fn( $row ) => array( $row->trigger_key => $row->mute ),

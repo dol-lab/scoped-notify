@@ -37,10 +37,10 @@ class Notification_Scheduler {
 	/**
 	 * Constructor.
 	 *
-	 * @param \wpdb           $wpdb   WordPress database instance.
+	 * @param \wpdb $wpdb   WordPress database instance.
 	 */
 	public function __construct( \wpdb $wpdb ) {
-		$this->wpdb   = $wpdb;
+		$this->wpdb = $wpdb;
 	}
 
 	/**
@@ -71,7 +71,7 @@ class Notification_Scheduler {
 		try {
 			$db_schedule = $this->wpdb->get_var(
 				$this->wpdb->prepare(
-					"SELECT schedule_type FROM %i WHERE user_id = %d AND blog_id = %d AND channel = %s",
+					'SELECT schedule_type FROM %i WHERE user_id = %d AND blog_id = %d AND channel = %s',
 					SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES,
 					$user_id,
 					$blog_id,

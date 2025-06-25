@@ -35,8 +35,8 @@ class Notification_Processor {
 	/**
 	 * Constructor.
 	 *
-	 * @param \wpdb           $wpdb      WordPress database instance.
-	 * @param string          $table_name The name of the notifications DB table.
+	 * @param \wpdb  $wpdb      WordPress database instance.
+	 * @param string $table_name The name of the notifications DB table.
 	 */
 	public function __construct( \wpdb $wpdb, string $table_name ) {
 		$this->wpdb                     = $wpdb;
@@ -109,38 +109,39 @@ class Notification_Processor {
 			$logger->debug( "Processing notification queue item {$this->format_item($item)}" );
 
 			// Mark as processing to reduce race conditions if run concurrently
-			$updated = $this->update_notification_status( absint($item->blog_id), absint($item->object_id), $item->object_type, absint($item->trigger_id), null, 'processing', false ); // Mark as processing, don't update sent_at yet
+			$updated = $this->update_notification_status( absint( $item->blog_id ), absint( $item->object_id ), $item->object_type, absint( $item->trigger_id ), null, 'processing', false ); // Mark as processing, don't update sent_at yet
 			if ( ! $updated ) {
 				$logger->warning( "Failed to mark notification queue item {$this->format_item($item)} as 'processing'. Skipping." );
 				continue;
 			}
 
-			$chunk_size=absint(\get_site_option(SCOPED_NOTIFY_MAIL_CHUNK_SIZE));
+			$chunk_size = absint( \get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE ) );
 			// use default-value if chunk_size equals 0
-			if ($chunk_size < 1) { $chunk_size = CHUNK_SIZE_FALLBACK; }
+			if ( $chunk_size < 1 ) {
+				$chunk_size = CHUNK_SIZE_FALLBACK; }
 
-			$user_chunks=array_chunk($users,$chunk_size);
+			$user_chunks = array_chunk( $users, $chunk_size );
 
 			// process each chunk and put the succeeded and failed users in the respective result arrays
 			$users_succeeded = array();
-			$users_failed = array();
-			foreach ($user_chunks as $user_chunk) {
-				list($success,$fail) = $this->process_single_notification( $item, $user_chunk ); // Process the single notification
-				$users_succeeded = array_merge($users_succeeded, $success);
-				$users_failed = array_merge($users_failed, $fail);
+			$users_failed    = array();
+			foreach ( $user_chunks as $user_chunk ) {
+				list($success, $fail) = $this->process_single_notification( $item, $user_chunk ); // Process the single notification
+				$users_succeeded      = array_merge( $users_succeeded, $success );
+				$users_failed         = array_merge( $users_failed, $fail );
 			}
 
 			// Update status based on processing result
-			foreach($users_succeeded as $user) {
-				$this->update_notification_status( absint($item->blog_id), absint($item->object_id), $item->object_type, absint($item->trigger_id), absint($user->queue_id), "sent", true );
+			foreach ( $users_succeeded as $user ) {
+				$this->update_notification_status( absint( $item->blog_id ), absint( $item->object_id ), $item->object_type, absint( $item->trigger_id ), absint( $user->queue_id ), 'sent', true );
 				++$processed_count;
 			}
-			foreach($users_failed as $user) {
-				$this->update_notification_status( absint($item->blog_id), absint($item->object_id), $item->object_type, absint($item->trigger_id), absint($user->queue_id), "failed", false );
+			foreach ( $users_failed as $user ) {
+				$this->update_notification_status( absint( $item->blog_id ), absint( $item->object_id ), $item->object_type, absint( $item->trigger_id ), absint( $user->queue_id ), 'failed', false );
 			}
 
-			if (count($users_failed) > 0) {
-				$logger->error("sending of notifications failed for some users",array("users_failed" => $users_failed));
+			if ( count( $users_failed ) > 0 ) {
+				$logger->error( 'sending of notifications failed for some users', array( 'users_failed' => $users_failed ) );
 			}
 
 			// Optional: Add retry logic for failed items later
@@ -148,7 +149,6 @@ class Notification_Processor {
 
 		$logger->info( "Finished processing batch. Successfully processed {$processed_count} notifications." );
 		return $processed_count;
-
 	}
 
 	/**
@@ -160,9 +160,9 @@ class Notification_Processor {
 	private function get_channel_for_trigger( int $trigger_id ): ?string {
 		$logger = self::logger();
 
-		$channel        = $this->wpdb->get_var(
+		$channel = $this->wpdb->get_var(
 			$this->wpdb->prepare(
-				"SELECT channel FROM ".SCOPED_NOTIFY_TABLE_TRIGGERS." WHERE trigger_id = %d",
+				'SELECT channel FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_id = %d',
 				$trigger_id
 			)
 		);
@@ -179,10 +179,10 @@ class Notification_Processor {
 	 * Processes a single notification item from the SCOPED_NOTIFY_TABLE_QUEUE table.
 	 *
 	 * @param \stdClass $item The notification item data from the database.
-	 * @param Arrays $users The list of users to whom the notification is sent
+	 * @param Arrays    $users The list of users to whom the notification is sent
 	 * @return [$users with successes,$users which failed]
 	 */
-	private function process_single_notification( \stdClass $item, Array $users): Array {
+	private function process_single_notification( \stdClass $item, array $users ): array {
 		$logger = self::logger();
 
 		// Switch to the correct blog context if in multisite
@@ -197,8 +197,8 @@ class Notification_Processor {
 			}
 		}
 
-		$users_succeeded=array();
-		$users_failed=array();
+		$users_succeeded = array();
+		$users_failed    = array();
 
 		try {
 			// Get Object
@@ -224,34 +224,32 @@ class Notification_Processor {
 			$sent = false;
 			if ( $channel === 'mail' ) {
 				// Get User-emails
-				$user_emails=array();
-				foreach ($users as $user) {
-					$user_data=\get_userdata( $user->user_id);
-					if ( ! $user_data) {
-						$logger->error("no userdata for user with id {$user->user_id} found - skipping");
-						$users_failed[]=$user;
-					}
-					else {
-						$user_emails[]=$user_data->user_email;
+				$user_emails = array();
+				foreach ( $users as $user ) {
+					$user_data = \get_userdata( $user->user_id );
+					if ( ! $user_data ) {
+						$logger->error( "no userdata for user with id {$user->user_id} found - skipping" );
+						$users_failed[] = $user;
+					} else {
+						$user_emails[] = $user_data->user_email;
 					}
 				}
 
 				$sent = $this->send_mail_notification( $user_emails, $object, $item );
-				if ($sent) {
-					$users_succeeded = array_merge($users_succeeded, $users);
-				}
-				else {
-					$users_failed = array_merge($users_failed, $users);
+				if ( $sent ) {
+					$users_succeeded = array_merge( $users_succeeded, $users );
+				} else {
+					$users_failed = array_merge( $users_failed, $users );
 				}
 			} elseif ( $channel === 'push' ) {
 				// Placeholder for push notification logic
 				$logger->warning( "Push notification channel not yet implemented for notification queue item {$this->format_item($item)}" );
-				$users_failed = array_merge($users_failed, $users);
+				$users_failed = array_merge( $users_failed, $users );
 			} else {
 				// Allow filtering for custom channels
-				[$succeeded,$failed] = \apply_filters( 'scoped_notify_send_notification_channel_' . $channel, false, $users, $object, $item );
-				$users_succeeded = array_merge($users_succeeded, $succeeded);
-				$users_failed = array_merge($users_failed, $failed);
+				[$succeeded, $failed] = \apply_filters( 'scoped_notify_send_notification_channel_' . $channel, false, $users, $object, $item );
+				$users_succeeded      = array_merge( $users_succeeded, $succeeded );
+				$users_failed         = array_merge( $users_failed, $failed );
 			}
 
 			// Restore blog context if switched (must happen before returning)
@@ -261,10 +259,10 @@ class Notification_Processor {
 			}
 
 			$logger->debug( "Sent notification queue item {$this->format_item($item)} via channel '{$channel}' to user {$user->ID}." );
-			return [ $users_succeeded, $users_failed ];
+			return array( $users_succeeded, $users_failed );
 		} catch ( \Exception $e ) {
 			$logger->error(
-				"Error processing notification queue item" . $e->getMessage(),
+				'Error processing notification queue item' . $e->getMessage(),
 				array(
 					'item'      => $item,
 					'exception' => $e,
@@ -275,7 +273,7 @@ class Notification_Processor {
 				\restore_current_blog();
 				$logger->debug( "Restored original blog context (Blog ID: {$original_blog_id}) after error on notification queue item {$this->format_item($item)}" );
 			}
-			return [ array(), $users ];
+			return array( array(), $users );
 		}
 	}
 
@@ -338,14 +336,14 @@ class Notification_Processor {
 	 * if no queue_id is given, update all entries for given item (blog_id,object_id,object_type,trigger_id)
 	 * if queue_id is given, update only a single item, but still the item values have to be passed
 	 *
-	 * @param int	 $blog_id			mandatory
-	 * @param int	 $object_id			mandatory
-	 * @param int	 $object_type		mandatory
-	 * @param int	 $trigger_id		mandatory
-	 * @param ?int	 $queue_id       The ID of the notification queue item or null - if given, update only this single item
+	 * @param int    $blog_id           mandatory
+	 * @param int    $object_id         mandatory
+	 * @param int    $object_type       mandatory
+	 * @param int    $trigger_id        mandatory
+	 * @param ?int   $queue_id       The ID of the notification queue item or null - if given, update only this single item
 	 * @param string $status         The new status ('processing', 'sent', 'failed').
 	 * @param bool   $update_sent_at Whether to update the sent_at timestamp.
-	 * @return bool 				True on success, false on failure.
+	 * @return bool                 True on success, false on failure.
 	 */
 	// $item->blog_id, $item->object_id, $item->object_type, $item->trigger_id,
 	private function update_notification_status( int $blog_id, int $object_id, string $object_type, int $trigger_id, ?int $queue_id, string $status, bool $update_sent_at ): bool {
@@ -354,15 +352,16 @@ class Notification_Processor {
 		$data   = array( 'status' => $status );
 		$format = array( '%s' );
 
-		$wheredata = array( 'blog_id' => $blog_id,
-						'object_id'	=> $object_id,
-						'object_type'	=> $object_type,
-						'trigger_id'	=> $trigger_id,
-					);
-		$whereformat = array( '%d','%d','%s','%d' );
-		if (! is_null($queue_id)) {
-			$wheredata["queue_id"]=$queue_id;
-			$whereformat[] = "%d";
+		$wheredata   = array(
+			'blog_id'     => $blog_id,
+			'object_id'   => $object_id,
+			'object_type' => $object_type,
+			'trigger_id'  => $trigger_id,
+		);
+		$whereformat = array( '%d', '%d', '%s', '%d' );
+		if ( ! is_null( $queue_id ) ) {
+			$wheredata['queue_id'] = $queue_id;
+			$whereformat[]         = '%d';
 		}
 
 		if ( $update_sent_at ) {
@@ -395,18 +394,18 @@ class Notification_Processor {
 	 * Formats and sends an email notification for a single notification item.
 	 * Handles blog switching for content generation.
 	 *
-	 * @param Array                   $user_emails   The recipient user object.
+	 * @param Array                      $user_emails   The recipient user object.
 	 * @param \WP_Post|\WP_Comment|mixed $object The triggering object.
 	 * @param \stdClass                  $item   The notification item from SCOPED_NOTIFY_TABLE_QUEUE.
 	 * @return bool True if sending was successful, false otherwise.
 	 */
-	private function send_mail_notification( Array $user_emails, $object, \stdClass $item ): bool {
+	private function send_mail_notification( array $user_emails, $object, \stdClass $item ): bool {
 		$logger = self::logger();
 
 		$logger->info(
 			'--- Preparing Mail Notification ---',
 			array(
-				'user_emails'            => $user_emails,
+				'user_emails' => $user_emails,
 			)
 		);
 
@@ -424,18 +423,17 @@ class Notification_Processor {
 		$sent = false;
 		try {
 			// Pass $item which contains object_type, object_id, reason etc.
-			$subject = $this->format_mail_subject( $object, $item ); // format methods now handle blog switching if needed
-			$message = $this->format_mail_message( $object, $item ); // format methods now handle blog switching if needed
-			$headers = array( 'Content-Type: text/html; charset=UTF-8' );
-			$headers[]='Bcc: '.implode(',',$user_emails);
-
+			$subject   = $this->format_mail_subject( $object, $item ); // format methods now handle blog switching if needed
+			$message   = $this->format_mail_message( $object, $item ); // format methods now handle blog switching if needed
+			$headers   = array( 'Content-Type: text/html; charset=UTF-8' );
+			$headers[] = 'Bcc: ' . implode( ',', $user_emails );
 
 			// Use the filter method for HTML emails
 			$set_html_content_type = fn() => 'text/html'; // PHP 7.4+ arrow function
 			add_filter( 'wp_mail_content_type', $set_html_content_type );
 
 			// todo default recipient needs constant
-			$sent = \wp_mail( "noreply@thkoeln.de", $subject, $message, $headers );
+			$sent = \wp_mail( 'noreply@thkoeln.de', $subject, $message, $headers );
 
 			\remove_filter( 'wp_mail_content_type', $set_html_content_type );
 		} finally {
@@ -447,9 +445,9 @@ class Notification_Processor {
 
 		if ( ! $sent ) {
 			$logger->error(
-				"wp_mail failed",
+				'wp_mail failed',
 				array(
-					'mails'                 => $user_emails,
+					'mails' => $user_emails,
 				)
 			);
 			return false;
@@ -482,7 +480,7 @@ class Notification_Processor {
 		$subject = '';
 		try {
 			// prevent html entities showing up in the mail subject like [Everybody&#039;s home]
-			$blog_name = html_entity_decode(\get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8');
+			$blog_name = html_entity_decode( \get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' );
 
 			if ( $object instanceof \WP_Post ) {
 				switch ( $item->reason ) {
@@ -643,11 +641,10 @@ class Notification_Processor {
 	/**
 	 * Formats the items data for logging messages
 	 *
-	 * @param \stdClass                  $item   The notification item.
+	 * @param \stdClass $item   The notification item.
 	 * @return string The formatted HTML message body.
 	 */
 	private function format_item( \stdClass $item ): string {
-		return sprintf("blog_id %d, object_id %d, object_type %s, trigger_id %d",$item->blog_id,$item->object_id,$item->object_type,$item->trigger_id);
+		return sprintf( 'blog_id %d, object_id %d, object_type %s, trigger_id %d', $item->blog_id, $item->object_id, $item->object_type, $item->trigger_id );
 	}
-
 }
