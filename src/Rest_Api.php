@@ -19,6 +19,9 @@ class Rest_Api {
 
 	const ROUTE_SETTINGS = '/settings';
 
+	/**
+	 * register REST API routes
+	 */
 	public static function register_routes(): void {
 		register_rest_route(
 			route_namespace: self::NAMESPACE,
@@ -33,6 +36,9 @@ class Rest_Api {
 		);
 	}
 
+	/**
+	* set user preferences
+	*/
 	private static function set_user_preferences( \WP_REST_Request $request ): WP_REST_Response {
 		$logger = self::logger();
 
@@ -103,6 +109,10 @@ class Rest_Api {
 		}
 	}
 
+	/**
+	* return error response
+	* @return WP_REST_Response error message
+	*/
 	private static function return_error(): WP_REST_Response {
 		return rest_ensure_response(
 			new WP_REST_Response(

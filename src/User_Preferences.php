@@ -15,6 +15,11 @@ class User_Preferences {
 
 	const CHANNEL = 'mail';
 
+	/**
+	 * get network preferences == user preferences
+	 * @param int $user_id
+	 * @return Notification_Preference  preference
+	 */
 	public static function get_network_preference( int $user_id ): Notification_Preference {
 		$pref = self::get(
 			Scope::Network,
@@ -28,6 +33,12 @@ class User_Preferences {
 		}
 	}
 
+	/**
+	 * get blog preferences
+	 * @param int $user_id
+	 * @param int $blog_id
+	 * @return Notification_Preference|null  preference or null if none is set
+	 */
 	public static function get_blog_preference( int $user_id, int $blog_id ): Notification_Preference|null {
 		$pref = self::get(
 			Scope::Blog,
@@ -40,6 +51,13 @@ class User_Preferences {
 		return $pref;
 	}
 
+	/**
+	 * get post preferences
+	 * @param int $user_id
+	 * @param int $blog_id
+	 * @param int $post_id
+	 * @return Notification_Preference|null  preference or null if none is set
+	 */
 	public static function get_post_preference( int $user_id, int $blog_id, int $post_id ): Notification_Preference|null {
 
 		$pref = self::get(
@@ -55,7 +73,11 @@ class User_Preferences {
 	}
 
 	/**
-	 * this checks for a post if notifications should be sent or not, and checks the full set of preferences (post, term, blog, user_settings)
+	 * this checks for a post if notifications should be sent or not, and checks the full set of preferences
+	 * post, term, blog, user_settings
+	 * @param int $user_id
+	 * @param int $blog_id
+	 * @param int $post_id
 	 * @return bool
 	 * @throws Exception
 	 */
@@ -170,6 +192,13 @@ class User_Preferences {
 		}
 	}
 
+	/**
+	 * get get preferences for a given scope
+	 * @param Scope $scope
+	 * @param int $user_id
+	 * @param int $constraints  constraints effectively are database field / expected value pairs which entries are to be returned
+	 * @return Notification_Preference|null  preference or null if none is set
+	 */
 	private static function get( Scope $scope, int $user_id, array $constraints = null ): Notification_Preference|null {
 		global $wpdb;
 
@@ -250,6 +279,13 @@ class User_Preferences {
 		return $pref;
 	}
 
+	/**
+	 * set preferences for a given scope
+	 * @param Scope $scope
+	 * @param array $fields  which entry should be updated
+	 * @param Notification_Preference $pref  preference to be set
+	 * @return bool   true if successful
+	 */
 	public static function set( Scope $scope, array $fields, Notification_Preference $pref ): bool {
 		global $wpdb;
 
@@ -304,6 +340,12 @@ class User_Preferences {
 		return true;
 	}
 
+	/**
+	 * remove preferences for a given scope
+	 * @param Scope $scope
+	 * @param array $fields  which entry should be updated
+	 * @return bool   true if successful
+	 */
 	public static function remove( Scope $scope, array $fields ): bool {
 		global $wpdb;
 
@@ -329,6 +371,11 @@ class User_Preferences {
 		return true;
 	}
 
+	/**
+	 * return tablename for given scope
+	 * @param Scope $scope
+	 * @return string|null   tablename of empty of unknown scope was given
+	 */
 	private static function get_table_name( Scope $scope ): string|null {
 		return match ( $scope ) {
 			Scope::Network => SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE,
@@ -338,6 +385,10 @@ class User_Preferences {
 		};
 	}
 
+	/**
+	 * return applicable trigger-ids
+	 * @return array
+	 */
 	private static function get_trigger_ids(): array {
 		global $wpdb;
 
