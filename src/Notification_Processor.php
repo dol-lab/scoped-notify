@@ -258,7 +258,7 @@ class Notification_Processor {
 				$logger->debug( "Restored original blog context (Blog ID: {$original_blog_id}) after processing notification queue item {$this->format_item($item)}" );
 			}
 
-			$logger->debug( "Sent notification queue item {$this->format_item($item)} via channel '{$channel}' to user {$user->ID}." );
+			$logger->debug( "Sent notification queue item {$this->format_item($item)} via channel '{$channel}' to user {$user->user_id}." );
 			return array( $users_succeeded, $users_failed );
 		} catch ( \Exception $e ) {
 			$logger->error(
