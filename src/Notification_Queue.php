@@ -388,13 +388,23 @@ class Notification_Queue {
 			return;
 		}
 
-		// TODO: make sending of private posts configurable
-		if ( 'private' !== $post->post_status && 'publish' !== $post->post_status ) {
+		if ( 'publish' === $post->post_status ) {
+			// do nothing => continue with function
+		}
+		elseif ( 'private' === $post->post_status && \get_site_option(SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS,false) ) {
+			// private post, and notifications for private posts are activated => continue with function
+		}
+		elseif ( 'private' === $post->post_status ) {
+			$logger->debug( 'skipping notification for private post, SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS is missing or false' );
+			return;
+		}
+		else {
 			$logger->debug( 'Wrong post status - no notifications sent' );
 			return;
 		}
 		// Avoid infinite loops if updates trigger saves
 		// Use global namespace for WordPress constants
+		// this is likely not necessary
 		if ( defined( '\DOING_AUTOSAVE' ) && \DOING_AUTOSAVE ) {
 			$logger->debug( 'Autosave - no notifications sent' );
 			return;
