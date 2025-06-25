@@ -71,28 +71,30 @@ class Rest_Api {
 			}
 			else {
 
-				// for scope blog: "yes_notifications" is set to "comment_post"
-				// check if given preference exists
-				// different scopes have different sets of valid preferences
-				if ( ( 'post' === $scope->value ) && ( 'yes-notifications' === $request['value'] ) ) {
-					// $logger->debug("setting yes-notifications for post to posts_and_comments");
+				if ( ( 'post' === $scope->value ) && ( 'activate-notifications' === $request['value'] ) ) {
 					$preference = Notification_Preference::Posts_And_Comments;
 				}
-				else {
-					$preference  = Notification_Preference::tryFrom( $request['value'] );
+				elseif ( ( 'post' === $scope->value ) && ( 'deactivate-notifications' === $request['value'] ) ) {
+					$preference = Notification_Preference::No_Notifications;
 				}
-				if (null === $preference) {
-					$logger->warning("notification preference ".urlencode($request['value'])." does not exist for scope ".$scope->value);
+				elseif ( 'post' === $scope->value ) {
+					$logger->warning("notification preference ".urlencode($request['value'])." does not exist for scope post");
 					return self::return_error();
 				}
+				else {
 
+					$preference  = Notification_Preference::tryFrom( $request['value'] );
+					if (null === $preference) {
+						$logger->warning("notification preference ".urlencode($request['value'])." does not exist for scope ".$scope->value);
+						return self::return_error();
+					}
+
+				}
 				$args = array(
 					'scope'  => $scope,
 					'pref'   => $preference,
 					'fields' => $fields,
 				);
-
-				// $logger->debug( 'args', array( 'args' => $args ) );
 
 				$res = User_Preferences::set( ...$args );
 			}

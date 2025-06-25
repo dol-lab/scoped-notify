@@ -24,6 +24,7 @@ define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' );
 define( 'SCOPED_NOTIFY_NOREPLY_EMAIL', 'scoped_notify_noreplay_email' );
 define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cron hook name.
 
+define( 'SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE', true);
 
 // Include Composer autoloader if it exists.
 if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {

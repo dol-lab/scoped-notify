@@ -23,13 +23,6 @@ class Notification_Resolver {
 	use Static_Logger_Trait;
 
 	/**
-	 * Default notification state. True means receive notifications unless explicitly muted.
-	 *
-	 * @var bool
-	 */
-	const DEFAULT_NOTIFICATION_STATE = true;
-
-	/**
 	 * WordPress database object.
 	 *
 	 * @var \wpdb
@@ -181,7 +174,7 @@ class Notification_Resolver {
 			$is_muted = false; // Default based on rules (Specificity 5)
 			if ( $final_mute_state === null ) {
 				// No specific setting found at any level, use default
-				$is_muted = ! self::DEFAULT_NOTIFICATION_STATE;
+				$is_muted = ! SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
 			} else {
 				// Explicit setting found
 				$is_muted = (bool) $final_mute_state; // '0' -> false (unmuted), '1' -> true (muted)
@@ -334,7 +327,7 @@ class Notification_Resolver {
 			$is_muted = false; // Default based on rules (Specificity 5)
 			if ( $final_mute_state === null ) {
 				// No specific setting found at any level, use default
-				$is_muted = ! self::DEFAULT_NOTIFICATION_STATE;
+				$is_muted = ! SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
 			} else {
 				// Explicit setting found
 				$is_muted = (bool) $final_mute_state; // '0' -> false (unmuted), '1' -> true (muted)

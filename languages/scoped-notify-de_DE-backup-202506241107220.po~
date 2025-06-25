@@ -1,18 +1,18 @@
-# Copyright (C) 2025 DolLab & V3
-# This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Scoped Notify 0.1\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/scoped-notify\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: Admine Adminissima\n"
+"Language-Team: Deutsch\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-06-23T15:10:09+00:00\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"X-Generator: WP-CLI 2.12.0\n"
-"X-Domain: scoped-notify\n"
+"POT-Creation-Date: 2025-06-13T13:03:58+00:00\n"
+"PO-Revision-Date: 2025-06-24 10:58+0000\n"
+"Language: de_DE\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.8.0; wp-6.8.1; php-8.1.32"
 
 #. Plugin Name of the plugin
 #: scoped-notify.php
@@ -25,7 +25,9 @@ msgid "DolLab & V3"
 msgstr ""
 
 #: scoped-notify.php:38
-msgid "Scoped Notify Error: Composer dependencies not found. Please run \"composer install\" in the plugin directory."
+msgid ""
+"Scoped Notify Error: Composer dependencies not found. Please run \"composer "
+"install\" in the plugin directory."
 msgstr ""
 
 #: scoped-notify.php:258
@@ -36,125 +38,126 @@ msgstr ""
 msgid "Every Five Minutes"
 msgstr ""
 
+#: src/Notification_Preference.php:20
+msgid "No Notifications"
+msgstr "Keine Benachrichtigungen"
+
 #: src/Notification_Preference.php:18
 msgid "For Posts"
-msgstr ""
+msgstr "Für Posts"
 
 #: src/Notification_Preference.php:19
 msgid "For Posts and Comments"
-msgstr ""
-
-#: src/Notification_Preference.php:20
-msgid "No Notifications"
-msgstr ""
+msgstr "Für Posts und Kommentare"
 
 #. translators:  %1$s blog name, "%2$s post title
 #: src/Notification_Processor.php:494
 #, php-format
 msgid "[%1$s] New Post Published: %2$s"
-msgstr ""
+msgstr "[%1$s] Neuer Beitrag veröffentlicht: %2$s"
 
 #. translators:  %1$s blog name, "%2$s post title
 #: src/Notification_Processor.php:498
 #, php-format
 msgid "[%1$s] Notification regarding Post: %2$s"
-msgstr ""
+msgstr "[%1$s] Benachrichtigung für Beitrag: %2$s"
 
-#: src/Notification_Processor.php:502
-#: src/Notification_Processor.php:584
+#: src/Notification_Processor.php:502 src/Notification_Processor.php:584
 msgid "a post"
-msgstr ""
+msgstr "ein Beitrag"
 
 #. translators:  %1$s blog name, "%2$s post title
 #: src/Notification_Processor.php:506
 #, php-format
 msgid "[%1$s] New Comment on: %2$s"
-msgstr ""
+msgstr "[%1$s] Neuer Kommentar zu: %2$s"
 
 #. translators:  %1$s blog name, "%2$s post title
 #: src/Notification_Processor.php:510
 #, php-format
 msgid "[%1$s] You were mentioned in a comment on: %2$s"
-msgstr ""
+msgstr "[%1$s] Du wurdest in einem Kommentar erwähnt: %2$s"
 
 #. translators:  %1$s blog name, "%2$s post title
 #: src/Notification_Processor.php:514
 #, php-format
 msgid "[%1$s] Notification regarding Comment on: %2$s"
-msgstr ""
+msgstr "[%1$s] Benachrichtigung zu Kommentar auf: %2$s"
 
 #. translators:  %1$s blog name, "%2$s reason
 #: src/Notification_Processor.php:519
 #, php-format
 msgid "[%1$s] New Notification (%2$s)"
-msgstr ""
-
-#: src/Notification_Processor.php:556
-msgid "Hello,"
-msgstr ""
+msgstr "[%1$s] Neue Benachrichtigung (%2$s)"
 
 #. translators:  %1$s object title, "%2$s blog name
 #: src/Notification_Processor.php:568
 #, php-format
 msgid "A new post, \"%1$s\", has been published on %2$s."
-msgstr ""
+msgstr "Ein neuer Beitrag, \"%1$s\", wurde veröffentlicht auf %2$s."
 
 #. translators:  %1$s object title, "%2$s blog name
 #: src/Notification_Processor.php:576
 #, php-format
 msgid "There is a notification regarding the post \"%1$s\" on %2$s."
-msgstr ""
+msgstr "Es gibt eine Benachrichtigung zu Beitrag \"%1$s\" auf %2$s."
 
 #. translators:  %1$s commenter name, "%2$s post title
 #: src/Notification_Processor.php:591
 #, php-format
 msgid "%1$s left a new comment on the post \"%2$s\":"
-msgstr ""
+msgstr "%1$s hat den Beitrag \"%2$s\" kommentiert:"
 
 #. translators:  %1$s commenter name, "%2$s post title
 #: src/Notification_Processor.php:600
 #, php-format
 msgid "You were mentioned by %1$s in a comment on the post \"%2$s\":"
-msgstr ""
+msgstr "Du wurdest von %1$s in einem Kommentar zu \"%2$s\" erwähnt:"
 
 #. translators:  %1$s commenter name, "%2$s post title
 #: src/Notification_Processor.php:609
 #, php-format
-msgid "There is a notification regarding a comment by %1$s on the post \"%2$s\"."
+msgid ""
+"There is a notification regarding a comment by %1$s on the post \"%2$s\"."
 msgstr ""
+"Es gibt keine Benachrichtigung zu einem Kommentar von %1$s auf den Beitrag "
+"\"%2$s\"."
 
 #. translators: %s reason
 #: src/Notification_Processor.php:618
 #, php-format
 msgid "A notification was triggered with reason: %s"
-msgstr ""
+msgstr "Eine Benachrichtigung wurde ausgelöst wegen: %s"
 
 #: src/Notification_Processor.php:625
 msgid "View Comment"
-msgstr ""
+msgstr "Kommentar ansehen"
 
 #: src/Notification_Processor.php:625
 msgid "View Post"
-msgstr ""
+msgstr "Beitrag ansehen"
 
 #. translators: %s blog name
 #: src/Notification_Processor.php:634
 #, php-format
 msgid "This email was sent from %s."
-msgstr ""
+msgstr "Diese E-Mail wurde von %s verschickt."
 
-#: src/Notification_Ui.php:62
-#: src/Notification_Ui.php:87
+#: src/Notification_Ui.php:256
+msgid "Notify me"
+msgstr "Benachrichtige mich"
+
+#: src/Notification_Processor.php:556
+msgid "Hello,"
+msgstr "Hallo, "
+
+#: src/Notification_Ui.php:62 src/Notification_Ui.php:87
 #: src/Notification_Ui.php:149
 msgid "Mail Notification"
-msgstr ""
+msgstr "E-Mail-Benachrichtigung"
 
 #. translators:  %1$s $default_setting
 #: src/Notification_Ui.php:191
 #, php-format
 msgid "Use Default (%1$s)"
-msgstr ""
-
-#: src/Notification_Ui.php:256
-msgid "Notify me"
-msgstr ""
+msgstr "Standardeinstellung (%1$s)"
