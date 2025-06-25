@@ -381,7 +381,6 @@ class Notification_Queue {
 	public function handle_new_post( int $post_id, \WP_Post $post ) {
 		$logger = self::logger();
 
-		$logger->debug( 'Handle new post ' . print_r( $post, true ) );
 		// Basic check: only queue for specific post types if needed, e.g., 'post'
 		// TODO: Make post types configurable
 		if ( 'post' !== $post->post_type ) {

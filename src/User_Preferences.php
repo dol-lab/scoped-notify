@@ -218,7 +218,8 @@ class User_Preferences {
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ) );
 
 		if ( count( $rows ) === 0 ) {
-			$logger->warning( 'no trigger rows found' );
+			// no settings found - this can happen if no special notifications are currently set on the given scope
+			return null;
 		}
 
 		$rows  = $rows ?? array();
