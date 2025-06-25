@@ -54,7 +54,7 @@ add_filter( 'cron_schedules', __NAMESPACE__ . '\add_cron_schedules' );
 add_action( SCOPED_NOTIFY_CRON_HOOK, __NAMESPACE__ . '\process_notification_queue_cron' );
 add_action( 'plugins_loaded', __NAMESPACE__ . '\in_plugins_loaded', 20 ); // Run after update check and cron schedule definition.
 add_action( 'init', __NAMESPACE__ . '\init', 20 );
-add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\enqueue_script', 1 );
+add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\enqueue_scripts', 1 );
 
 // Trigger cron job processing after new post/comment handling. This is not async so user might have to wait.
 add_action( 'sn_after_handle_new_post', __NAMESPACE__ . '\process_notification_queue_cron' );
@@ -85,51 +85,13 @@ function in_plugins_loaded() {
 	}
 }
 
-function enqueue_script(){
-	// handle notifications for scoped-notify plugin
-	// wp_register_script( 'scoped-notify', 'http://localhost:8080/app/plugins/scoped-notify/js/scoped-notify.js', array( 'jquery' ), '', false );
-	// returns currently a 404
-	wp_register_script( 'scoped-notify', plugin_dir_url( __DIR__ ) . 'scoped-notify/js/scoped-notify.js', array( 'jquery' ), null, false );
 
-	// wp_register_script( 'scoped-notify', plugin_dir_url( '/js/scoped-notify.js', __FILE__ ), array( 'jquery' ), '', false );
-
-	wp_localize_script( 'scoped-notify', 'data', [
-		'rest' => [
-			// The rest_url function relies on the $wp_rewrite global class when pretty permalinks are enabled, which isn't available as early as the plugins_loaded action, but should instead be used with either the init or wp hook.
-			'endpoint' => esc_url_raw( rest_url( Rest_Api::NAMESPACE . Rest_Api::ROUTE_SETTINGS ) ),
-			'timeout'   => (int) apply_filters( "scoped_notify_rest_timeout", 3000 ),
-			'nonce'     => wp_create_nonce( 'wp_rest' ),
-		],
-	] );
-
-	wp_enqueue_script( 'scoped-notify' );
-}
 
 function init() {
-	$logger = Logger::create();
-	$ui            = new Notification_Ui( $logger ); // Create html for notification
+	$logger	= Logger::create();
+	$ui		= new Notification_Ui( $logger ); // Create html for notification
 	// Load text domain for localization.
 	load_plugin_textdomain( 'scoped-notify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
-
-	// register rest endpoint
-	/*
-	add_action(
-		'rest_api_init',
-		function () {
-			register_rest_route(
-				'scoped-notify/v1',
-				'/subscribe',
-				array(
-					'methods'             => \WP_REST_Server::EDITABLE,
-					'callback'            => __NAMESPACE__ . '\set_settings',
-					'permission_callback' => function () {
-						return is_user_logged_in();
-					},
-				),
-			);
-		}
-	);
-	*/
 
 	// add blog_settings to defaulttheme sidebar
 	add_filter( 'default_space_setting', 					array( $ui, 'add_blog_settings_item' ) );
@@ -146,6 +108,21 @@ function init() {
 	// choose a nice title like "Notify me!"
 	// and enter the shortcode [get_notification_toggle_switch] in the text field
 	add_shortcode( 'get_notification_toggle_switch', array( $ui, 'get_notification_toggle_switch' ) );
+}
+
+function enqueue_scripts(){
+	wp_register_script( 'scoped-notify', plugin_dir_url( __DIR__ ) . 'scoped-notify/js/scoped-notify.js', array( 'jquery' ), null, false );
+
+	wp_localize_script( 'scoped-notify', 'data', [
+		'rest' => [
+			// The rest_url function relies on the $wp_rewrite global class when pretty permalinks are enabled, which isn't available as early as the plugins_loaded action, but should instead be used with either the init or wp hook.
+			'endpoint' => esc_url_raw( rest_url( Rest_Api::NAMESPACE . Rest_Api::ROUTE_SETTINGS ) ),
+			'timeout'   => (int) apply_filters( "scoped_notify_rest_timeout", 3000 ),
+			'nonce'     => wp_create_nonce( 'wp_rest' ),
+		],
+	] );
+
+	wp_enqueue_script( 'scoped-notify' );
 }
 
 /**
