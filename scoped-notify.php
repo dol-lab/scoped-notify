@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Scoped Notify
- * Version:           0.1
+ * Version:           0.2
  * Author:            DolLab & V3
  * License:           GPL v2 or later
  * Text Domain:       scoped-notify
@@ -16,7 +16,7 @@ namespace Scoped_Notify;
 defined( 'ABSPATH' ) || exit;
 
 // Define constants
-define( 'SCOPED_NOTIFY_VERSION', '0.1.1' ); // Incremented version to trigger DB update
+define( 'SCOPED_NOTIFY_VERSION', '0.2.0' ); // Incremented version to trigger DB update
 define( 'SCOPED_NOTIFY_PLUGIN_FILE', __FILE__ );
 define( 'SCOPED_NOTIFY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOPED_NOTIFY_DB_VERSION_OPTION', 'scoped_notify_db_version' );
