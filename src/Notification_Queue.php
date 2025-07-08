@@ -384,7 +384,7 @@ class Notification_Queue {
 		// Basic check: only queue for specific post types if needed, e.g., 'post'
 		// TODO: Make post types configurable
 		if ( 'post' !== $post->post_type ) {
-			$logger->debug( 'Wrong post type - no notifications sent' );
+			$logger->debug( "Wrong post type - no notifications sent - post type:".$post->post_type );
 			return;
 		}
 

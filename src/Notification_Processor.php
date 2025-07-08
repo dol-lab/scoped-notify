@@ -212,7 +212,6 @@ class Notification_Processor {
 			// apply filter for recipient list
 			// todo apply_filters here clashes with strict_types
 			$user_objects = \apply_filters( 'scoped_notify_filter_recipients', $users, $object );
-			$logger->debug(1);
 
 			$users_succeeded = array();
 			$users_failed    = array();
@@ -231,14 +230,14 @@ class Notification_Processor {
 				foreach ( $user_chunks as $user_chunk ) {
 
 					if (has_filter( 'scoped_notify_third_party_send_mail_notification' )) {
-						$logger->debug("third party filter for sending mail notifications found");
+						$logger->debug("third party filter for sending mail notifications found - applying");
 						$sent = apply_filters( 'scoped_notify_third_party_send_mail_notification', false, $user_chunk, $object );
 					}
+
 					if ( $sent ) {
 						$logger->debug("third party filter applied");
 					}
 					else {
-						$logger->debug(3);
 						// Get User-emails
 						$user_emails = array_map(fn($user) => $user->user_email, $user_chunk);
 
