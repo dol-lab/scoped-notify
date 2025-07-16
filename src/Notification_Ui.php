@@ -59,7 +59,7 @@ class Notification_Ui {
 			'class' => 'scoped-notify-options scoped-notify-options--blog',
 			'data'  => array(
 				'scoped_notify_icon'     => 'fa-envelope',
-				'scoped_notify_headline' => esc_html__( 'Mail Notification', 'scoped-notify' ),
+				'scoped_notify_headline' => esc_html__( 'Mail Notifications', 'scoped-notify' ),
 				'scoped_notify_selector' => $this->get_blog_option_selector( $blog_id ),
 			),
 			'html'  => fn( $d ) => "
@@ -77,20 +77,23 @@ class Notification_Ui {
 	/**
 	 * adds radiogroup with blog settings as shortcode
 	 * @return string html
+	 * @todo "Home" should be replaced by the blog name
 	 */
 	public function get_notification_toggle_switch() {
+		$blog_name    = \get_bloginfo( 'name' );
 		return "
 		<div class='card'>
 			<div class='card-section'>
 				<div class='scoped-notify-options scoped-notify-options--blog'>
-					<div class='scoped-notify-options-title'>
-						" . esc_html__( 'Mail Notification', 'scoped-notify' ) . '
+					<div class='scoped-notify-options-title'>"
+						/* translators: %s blog name */
+						. \sprintf( \esc_html__( 'Mail Notifications for %s', 'scoped-notify' ), $blog_name ) . "
 					</div>
-					' . $this->get_blog_option_selector( get_current_blog_id() ) . '
+					" . $this->get_blog_option_selector( get_current_blog_id() ) . "
 				</div>
 			</div>
 		</div>
-		';
+		";
 	}
 
 	/**
@@ -145,7 +148,7 @@ class Notification_Ui {
 		return "
 			<div class='scoped-notify-options scoped-notify-options--network'>
 				<div class='scoped-notify-options-title'>
-				" . esc_html__( 'Mail Notification', 'scoped-notify' ) . "
+				" . esc_html__( 'Mail Notifications', 'scoped-notify' ) . "
 				</div>
 				<ul
 					data-scope='$scope'
