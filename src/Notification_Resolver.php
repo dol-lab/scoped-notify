@@ -188,9 +188,11 @@ class Notification_Resolver {
 			}
 		}
 
+		$recipient_ids_filtered = apply_filters('scoped_notify_filter_recipients', $recipient_ids, $post);
+
 		// Add mentioned users - they override mute settings.
 		$mentioned_user_ids  = $this->get_mentioned_user_ids( $post->post_content );
-		$final_recipient_ids = array_unique( array_merge( $recipient_ids, $mentioned_user_ids ) );
+		$final_recipient_ids = array_unique( array_merge( $recipient_ids_filtered, $mentioned_user_ids ) );
 
 		return $final_recipient_ids;
 	}
@@ -342,9 +344,11 @@ class Notification_Resolver {
 			}
 		}
 
+		$recipient_ids_filtered = apply_filters('scoped_notify_filter_recipients', $recipient_ids, $comment);
+
 		// Add mentioned users - they override mute settings.
 		$mentioned_user_ids  = $this->get_mentioned_user_ids( $comment->comment_content );
-		$final_recipient_ids = array_unique( array_merge( $recipient_ids, $mentioned_user_ids ) );
+		$final_recipient_ids = array_unique( array_merge( $recipient_ids_filtered, $mentioned_user_ids ) );
 
 		// TODO: Add logic for conversation participants? (e.g., author of parent post, other commenters)
 		// This might require separate checks or adding reasons to the queue.

@@ -411,7 +411,6 @@ function process_notification_queue_cron() {
 
 	try {
 		// Process a limited number of items per run.
-		$logger->debug("1");
 		$processed_count = $processor->process_queue( apply_filters( 'scoped_notify_cron_batch_limit', 20 ) ); // Allow filtering batch size.
 		$logger->info( "Cron job finished: Processed {$processed_count} queue items." );
 	} catch ( \Exception $e ) {
