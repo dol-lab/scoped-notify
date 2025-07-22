@@ -209,10 +209,6 @@ class Notification_Processor {
 			}
 			$logger->debug( "Determined channel '{$channel}' for notification queue item {$this->format_item($item)} via trigger_id {$item->trigger_id}." );
 
-			// apply filter for recipient list
-			// todo apply_filters here clashes with strict_types
-			$user_objects = \apply_filters( 'scoped_notify_filter_recipients', $users, $object );
-
 			$users_succeeded = array();
 			$users_failed    = array();
 
