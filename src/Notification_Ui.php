@@ -80,20 +80,20 @@ class Notification_Ui {
 	 * @todo "Home" should be replaced by the blog name
 	 */
 	public function get_notification_toggle_switch() {
-		$blog_name    = \get_bloginfo( 'name' );
+		$blog_name = \get_bloginfo( 'name' );
 		return "
 		<div class='card'>
 			<div class='card-section'>
 				<div class='scoped-notify-options scoped-notify-options--blog'>
 					<div class='scoped-notify-options-title'>"
 						/* translators: %s blog name */
-						. \sprintf( \esc_html__( 'Mail Notifications for %s', 'scoped-notify' ), $blog_name ) . "
+						. \sprintf( \esc_html__( 'Mail Notifications for %s', 'scoped-notify' ), $blog_name ) . '
 					</div>
-					" . $this->get_blog_option_selector( get_current_blog_id() ) . "
+					' . $this->get_blog_option_selector( get_current_blog_id() ) . '
 				</div>
 			</div>
 		</div>
-		";
+		';
 	}
 
 	/**
@@ -152,7 +152,7 @@ class Notification_Ui {
 				</div>
 				<ul
 					data-scope='$scope'
-					class='js-scoped-notify-radiogroup scoped-notify-options-list radio-accordion success'
+					class='js-scoped-notify-radiogroup scoped-notify-options-list radio-accordion success padding-medium padding-top-0'
 				>
 				" . $this->get_options( $options, $radioname ) . '
 				</ul>
@@ -199,7 +199,7 @@ class Notification_Ui {
 			<ul
 				data-scope='$scope'
 				data-blog-id='$blog_id'
-				class='js-scoped-notify-radiogroup scoped-notify-options-list radio-accordion success'
+				class='js-scoped-notify-radiogroup scoped-notify-options-list radio-accordion success padding-medium padding-top-0'
 			>
 			" . $this->get_options( $options, $radioname ) . '
 			</ul>
