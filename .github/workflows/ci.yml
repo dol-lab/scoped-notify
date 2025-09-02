@@ -30,18 +30,37 @@ jobs:
           php-version: '8.1'
           coverage: none
 
-      - name: Cache composer dependencies
-        uses: actions/cache@v3
+      - name: Get Composer Cache Directory
+        id: composer-cache-dir
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        id: composer-cache
+        uses: actions/cache@v4
         with:
-          path: ~/.composer/cache
+          path: |
+            ${{ steps.composer-cache-dir.outputs.dir }}
+            vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
             ${{ runner.os }}-composer-
+
+      - name: Cache WordPress test environment
+        id: wp-test-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/wordpress/
+            /tmp/wordpress-tests-lib/
+          key: ${{ runner.os }}-wp-tests-${{ hashFiles('**/tests/bin/install-wp-tests.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-wp-tests-
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y default-mysql-client
 
       - name: Install Composer dependencies
+        if: steps.composer-cache.outputs.cache-hit != 'true'
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Wait for MySQL to be ready
@@ -56,6 +75,7 @@ jobs:
           done
 
       - name: Install WordPress unit test environment
+        if: steps.wp-test-cache.outputs.cache-hit != 'true'
         run: bash ./tests/bin/install-wp-tests.sh scoped_notify_test root devpw 127.0.0.1 latest
 
       - name: Run tests
