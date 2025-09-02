@@ -12,7 +12,6 @@ namespace Scoped_Notify;
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
-use Psr\Log\LoggerInterface;
 use DateTime;
 use DateTimeZone;
 
@@ -70,7 +69,7 @@ class Notification_Scheduler {
 		$schedule = self::DEFAULT_SCHEDULE_TYPE; // Default value
 		try {
 			$db_schedule = $this->wpdb->get_var(
-				$this->wpdb->prepare(
+				$this->wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 					'SELECT schedule_type FROM %i WHERE user_id = %d AND blog_id = %d AND channel = %s',
 					SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES,
 					$user_id,
@@ -155,13 +154,13 @@ class Notification_Scheduler {
 		$scheduled_time_local = null;
 
 		try {
-			if ( $schedule_type === 'daily' ) {
+			if ( 'daily' === $schedule_type ) {
 				$scheduled_time_local = new DateTime( $now->format( 'Y-m-d' ) . ' ' . $daily_time, $wp_timezone );
 				// If the target time for today has already passed, schedule for tomorrow
 				if ( $scheduled_time_local <= $now ) { // Use <= to handle exact match case
 					$scheduled_time_local->modify( '+1 day' );
 				}
-			} elseif ( $schedule_type === 'weekly' ) {
+			} elseif ( 'weekly' === $schedule_type ) {
 				// Calculate the next occurrence of the target day and time
 				$scheduled_time_local = new DateTime( $now->format( 'Y-m-d' ) . ' ' . $weekly_time, $wp_timezone );
 				$scheduled_time_local->modify( 'next ' . $weekly_day ); // Move to the next target day

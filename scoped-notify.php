@@ -25,7 +25,7 @@ define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cr
 // names for site_options
 define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' ); // how many email adresses to use in bcc:
 define( 'SCOPED_NOTIFY_EMAIL_TO_ADDRESS', 'scoped_notify_email_to_address' ); // the to-adress for the mails
-define( 'SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS', 'scoped_notify_send_notifications_for_private_posts'); // true == send notifications for private posts, false = do not send
+define( 'SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS', 'scoped_notify_send_notifications_for_private_posts' ); // true == send notifications for private posts, false = do not send
 
 // the global default if no special notification settings exist on any level
 define( 'SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE', true ); // the default notification
@@ -132,16 +132,6 @@ function init() {
 
 	// add comment_settings to dropdown in post card
 	add_filter( 'ds_post_dot_menu_data', array( $ui, 'add_comment_settings_item' ), 10, 2 );
-
-	// add network settings to drop down in the sidebar on the user's own profile page
-	add_filter( 'ds_child_member_profile_dot_menu_data', array( $ui, 'add_network_settings_item' ), 8, 1 );
-
-	// this shortcode is used in a sidebar widget in shared_home blog, keeping the name from the previous plugin
-	// go to the dashboard of the shared_home blog, select appearance / widget.
-	// drag "text" widget to area "sidebar",
-	// choose a nice title like "Notify me!"
-	// and enter the shortcode [get_notification_toggle_switch] in the text field
-	add_shortcode( 'get_notification_toggle_switch', array( $ui, 'get_notification_toggle_switch' ) );
 }
 
 function enqueue_scripts() {
@@ -153,13 +143,17 @@ function enqueue_scripts() {
 
 	wp_localize_script(
 		'scoped-notify',
-		'data',
+		'ScopedNotify',
 		array(
 			'rest' => array(
 				// The rest_url function relies on the $wp_rewrite global class when pretty permalinks are enabled, which isn't available as early as the plugins_loaded action, but should instead be used with either the init or wp hook.
 				'endpoint' => esc_url_raw( rest_url( Rest_Api::NAMESPACE . Rest_Api::ROUTE_SETTINGS ) ),
 				'timeout'  => (int) apply_filters( 'scoped_notify_rest_timeout', 3000 ),
 				'nonce'    => wp_create_nonce( 'wp_rest' ),
+			),
+			'i18n' => array(
+				'profile_notifications_off' => wp_kses_post( __( 'Notifications are now off by default. However, you will <strong>still</strong> receive them for the following exceptions:', 'scoped-notify' ) ),
+				'profile_notifications_on'  => wp_kses_post( __( 'Notifications are now on by default. However, you will <strong>not</strong> receive them for the following exceptions:', 'scoped-notify' ) ),
 			),
 		)
 	);
@@ -283,7 +277,6 @@ function deactivate_plugin() {
 	\delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE );
 	\delete_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS );
 	\delete_site_option( SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS );
-
 }
 
 /**

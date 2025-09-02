@@ -12,7 +12,12 @@ enum Notification_Preference: string {
 	case Posts_And_Comments = 'posts-and-comments';
 	case No_Notifications   = 'no-notifications';
 
-	public function getLabel(): string {
+	/**
+	 * Get human-readable label for the preference.
+	 *
+	 * @return string
+	 */
+	public function get_label(): string {
 		return match ( $this ) {
 			self::Posts_Only            => esc_html__( 'For Posts', 'scoped-notify' ),
 			self::Posts_And_Comments    => esc_html__( 'For Posts and Comments', 'scoped-notify' ),

@@ -1,9 +1,12 @@
 {
 	"intelephense.environment.includePaths": [],
 	"cSpell.words": [
+		"absint",
 		"ABSPATH",
 		"autoloader",
 		"bcmath",
+		"bloginfo",
+		"blogname",
 		"bmewburn",
 		"codesniffer",
 		"ctype",
@@ -39,6 +42,7 @@
 		"Unschedules",
 		"unscheduling",
 		"valeryanm",
+		"wpautop",
 		"wpcs",
 		"wpdb",
 		"xmlreader",
