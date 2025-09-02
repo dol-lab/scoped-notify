@@ -107,10 +107,10 @@ class CLI_Command {
 		try {
 			// Instantiate dependencies (needed within the command context)
 			global $wpdb; // Make sure $wpdb is available
-			$logger        = Logger::create();
-			$resolver      = new Notification_Resolver( $wpdb, $logger );
-			$scheduler     = new Notification_Scheduler( $logger, $wpdb ); // Instantiate scheduler
-			$queue_manager = new Notification_Queue( $resolver, $scheduler, $logger, $wpdb ); // Pass scheduler
+
+			$resolver      = new Notification_Resolver( $wpdb );
+			$scheduler     = new Notification_Scheduler( $wpdb ); // Instantiate scheduler
+			$queue_manager = new Notification_Queue( $resolver, $scheduler, $wpdb ); // Pass scheduler
 
 			// Resolve recipients (primarily for logging/dry-run info in this command)
 			$recipient_ids = $resolver->get_recipients_for_post( $post, $channel );
@@ -350,7 +350,7 @@ class CLI_Command {
 			global $wpdb; // Make sure $wpdb is available
 			$logger = Logger::create();
 			// TODO: Get table name from config
-			$processor = new Notification_Processor( $logger, $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
+			$processor = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
 
 			$processed_count = $processor->process_queue( $limit );
 
