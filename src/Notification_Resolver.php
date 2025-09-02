@@ -93,7 +93,7 @@ class Notification_Resolver {
             SELECT
                 u.ID as user_id,
                 COALESCE(
-                    term.mute,  	  -- Specificity 2: Term: if any is unmute => unmute, if all are mute => mute
+                    term.mute,         -- Specificity 2: Term: if any is unmute => unmute, if all are mute => mute
                     blog.mute,         -- Specificity 3: Blog setting
                     network.mute       -- Specificity 4: Network setting
                     -- Specificity 5 (Default) handled in PHP
@@ -136,7 +136,7 @@ class Notification_Resolver {
 				array(
 					'last_error' => $this->wpdb->last_error,
 					'sql'        => $sql, // Log the raw SQL for debugging
-					'args'       => $prepare_args, // Log the args passed to prepare
+					'args'       => $query_args, // Log the args passed to prepare
 					'post_id'    => $post->ID,
 					'blog_id'    => $blog_id,
 					'trigger_id' => $trigger_id,
@@ -145,12 +145,13 @@ class Notification_Resolver {
 			return array();
 		}
 
-		$results = $this->wpdb->get_results( $prepared_sql );
+		$results = $this->wpdb->get_results( $prepared_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
 		// Optional: Keep the error log for debugging during development if needed
 		// error_log( '' . __FILE__ . ' on line ' . __LINE__ . "\n" . print_r( compact( 'prepared_sql', 'sql', 'prepare_args' ), true ) );
 
 		// Check for DB errors before proceeding
-		if ( $results === null ) {
+		if ( null === $results ) {
 			$logger->error(
 				'Database error occurred while fetching notification settings for post.',
 				array(
@@ -175,7 +176,7 @@ class Notification_Resolver {
 			}
 
 			$is_muted = false; // Default based on rules (Specificity 5)
-			if ( $final_mute_state === null ) {
+			if ( null === $final_mute_state ) {
 				// No specific setting found at any level, use default
 				$is_muted = ! SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
 			} else {
@@ -188,7 +189,7 @@ class Notification_Resolver {
 			}
 		}
 
-		$recipient_ids_filtered = apply_filters('scoped_notify_filter_recipients', $recipient_ids, $post);
+		$recipient_ids_filtered = apply_filters( 'scoped_notify_filter_recipients', $recipient_ids, $post );
 
 		// Add mentioned users - they override mute settings.
 		$mentioned_user_ids  = $this->get_mentioned_user_ids( $post->post_content );
@@ -264,7 +265,7 @@ class Notification_Resolver {
                 u.ID as user_id,
                 COALESCE(
                     post_comment.mute, -- Specificity 1: Post setting for comments
-                    term.mute,  	  -- Specificity 2: Term: if any is unmute => unmute, if all are mute => mute
+                    term.mute,         -- Specificity 2: Term: if any is unmute => unmute, if all are mute => mute
                     blog.mute,         -- Specificity 3: Blog setting
                     network.mute       -- Specificity 4: Network setting
                     -- Specificity 5 (Default) handled in PHP
@@ -301,8 +302,8 @@ class Notification_Resolver {
                 u.ID IN ({$user_ids_placeholder})
         ";
 
-		$prepared_sql = $this->wpdb->prepare( $sql, $query_args );
-		$results      = $this->wpdb->get_results( $prepared_sql );
+		$prepared_sql = $this->wpdb->prepare( $sql, $query_args ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$results      = $this->wpdb->get_results( $prepared_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		// Check for DB errors before proceeding
 		if ( $results === null ) {
@@ -331,7 +332,7 @@ class Notification_Resolver {
 			}
 
 			$is_muted = false; // Default based on rules (Specificity 5)
-			if ( $final_mute_state === null ) {
+			if ( null === $final_mute_state ) {
 				// No specific setting found at any level, use default
 				$is_muted = ! SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
 			} else {
@@ -344,7 +345,7 @@ class Notification_Resolver {
 			}
 		}
 
-		$recipient_ids_filtered = apply_filters('scoped_notify_filter_recipients', $recipient_ids, $comment);
+		$recipient_ids_filtered = apply_filters( 'scoped_notify_filter_recipients', $recipient_ids, $comment );
 
 		// Add mentioned users - they override mute settings.
 		$mentioned_user_ids  = $this->get_mentioned_user_ids( $comment->comment_content );
@@ -357,13 +358,195 @@ class Notification_Resolver {
 	}
 
 	/**
+	 * Finds more specific notification settings that override a more general one being set.
+	 *
+	 * @param Scope    $scope The scope that was just set (e.g., Network, Blog).
+	 * @param int      $user_id The ID of the user whose preferences are being checked.
+	 * @param int|null $blog_id The ID of the blog, required if the scope is Blog.
+	 * @return array A list of opposing, more specific settings, including their type, name, link, and current value.
+	 */
+	public function get_opposing_more_specific( Scope $scope, int $user_id, ?int $blog_id = null ): array {
+		if ( Scope::Post === $scope ) {
+			return array();
+		}
+
+		$opposing_settings = array();
+
+		// Determine the preference for the current scope to find opposing settings in child scopes.
+		$parent_preference = match ( $scope ) {
+			Scope::Network => User_Preferences::get_network_preference( $user_id ),
+			Scope::Blog    => User_Preferences::get_blog_preference( $user_id, $blog_id ),
+			default        => null,
+		};
+
+		// If the preference for the current scope is not set, it inherits from the parent.
+		// We need to resolve this to find the actual parent preference.
+		if ( null === $parent_preference ) {
+			if ( Scope::Blog === $scope ) {
+				// A blog's parent is the network.
+				$parent_preference = User_Preferences::get_network_preference( $user_id );
+			} else {
+				// Network scope is top-level; if null, it uses the hardcoded default.
+				$parent_preference = SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE ? Notification_Preference::Posts_And_Comments : Notification_Preference::No_Notifications;
+			}
+		}
+
+		// A preference of No_Notifications means notifications are off. Anything else means they are on (for at least posts).
+		// We use the 'post-post' trigger's mute state as the indicator.
+		$parent_post_post_mute_state = ( $parent_preference === Notification_Preference::No_Notifications ) ? 1 : 0;
+		$opposing_mute_value         = 1 - $parent_post_post_mute_state;
+
+		// Get the trigger_id for the 'post-post' trigger, which we'll use to find opposing settings.
+		$post_post_trigger_id = $this->wpdb->get_var( $this->wpdb->prepare( 'SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s', SCOPED_NOTIFY_TABLE_TRIGGERS, Trigger_Key::Post_Post->value, 'mail' ) );
+
+		if ( ! $post_post_trigger_id ) {
+			self::logger()->error( 'Could not find trigger_id for post-post.' );
+			return array();
+		}
+
+		// #####################################################################
+		// Step 1: Gather all raw setting entries from the database that are opposing.
+		// #####################################################################
+
+		$blog_settings = array();
+		if ( Scope::Network === $scope ) {
+			$blog_settings = $this->wpdb->get_results(
+				$this->wpdb->prepare(
+					'SELECT DISTINCT blog_id FROM %i WHERE user_id = %d AND trigger_id = %d AND mute = %d',
+					SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS,
+					$user_id,
+					$post_post_trigger_id,
+					$opposing_mute_value
+				)
+			);
+		}
+
+		$term_table = SCOPED_NOTIFY_TABLE_SETTINGS_TERMS;
+		$term_sql   = 'SELECT DISTINCT blog_id, term_id FROM %i WHERE user_id = %d AND trigger_id = %d AND mute = %d';
+		$term_args  = array( $term_table, $user_id, $post_post_trigger_id, $opposing_mute_value );
+		if ( Scope::Blog === $scope ) {
+			$term_sql   .= ' AND blog_id = %d';
+			$term_args[] = $blog_id;
+		}
+		$term_settings = $this->wpdb->get_results( $this->wpdb->prepare( $term_sql, $term_args ) );
+
+		$post_table = SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS;
+		$post_sql   = 'SELECT DISTINCT blog_id, post_id FROM %i WHERE user_id = %d AND trigger_id = %d AND mute = %d';
+		$post_args  = array( $post_table, $user_id, $post_post_trigger_id, $opposing_mute_value );
+		if ( Scope::Blog === $scope ) {
+			$post_sql   .= ' AND blog_id = %d';
+			$post_args[] = $blog_id;
+		}
+		$post_settings = $this->wpdb->get_results( $this->wpdb->prepare( $post_sql, $post_args ) );
+
+		// #####################################################################
+		// Step 2: Group IDs by blog for efficient bulk fetching.
+		// #####################################################################
+
+		$posts_by_blog = array();
+		foreach ( $post_settings as $setting ) {
+			$posts_by_blog[ (int) $setting->blog_id ][] = (int) $setting->post_id;
+		}
+
+		$terms_by_blog = array();
+		foreach ( $term_settings as $setting ) {
+			$terms_by_blog[ (int) $setting->blog_id ][] = (int) $setting->term_id;
+		}
+
+		// #####################################################################
+		// Step 3: Bulk fetch details (titles, names, etc.) for each blog.
+		// #####################################################################
+
+		$post_details = array();
+		foreach ( $posts_by_blog as $b_id => $post_ids ) {
+			$post_table_name      = $this->wpdb->get_blog_prefix( $b_id ) . 'posts';
+			$post_ids_placeholder = implode( ',', array_fill( 0, count( $post_ids ), '%d' ) );
+			$post_results         = $this->wpdb->get_results(
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				$this->wpdb->prepare( "SELECT ID, post_title FROM {$post_table_name} WHERE ID IN ($post_ids_placeholder)", $post_ids )
+			);
+			foreach ( $post_results as $post ) {
+				$post_details[ $b_id ][ $post->ID ] = $post->post_title;
+			}
+		}
+
+		$term_details = array();
+		foreach ( $terms_by_blog as $b_id => $term_ids ) {
+			$term_table_name      = $this->wpdb->get_blog_prefix( $b_id ) . 'terms';
+			$term_tax_table_name  = $this->wpdb->get_blog_prefix( $b_id ) . 'term_taxonomy';
+			$term_ids_placeholder = implode( ',', array_fill( 0, count( $term_ids ), '%d' ) );
+			$term_results         = $this->wpdb->get_results(
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				$this->wpdb->prepare( "SELECT t.term_id, t.name, tt.taxonomy FROM {$term_table_name} t JOIN {$term_tax_table_name} tt ON t.term_id = tt.term_id WHERE t.term_id IN ($term_ids_placeholder)", $term_ids )
+			);
+			foreach ( $term_results as $term ) {
+				$term_details[ $b_id ][ $term->term_id ] = array(
+					'name'     => $term->name,
+					'taxonomy' => $term->taxonomy,
+				);
+			}
+		}
+
+		// #####################################################################
+		// Step 4: Assemble the final response using the pre-fetched data.
+		// #####################################################################
+
+		foreach ( $blog_settings as $setting ) {
+			$b_id = (int) $setting->blog_id;
+			$pref = User_Preferences::get_blog_preference( $user_id, $b_id );
+			if ( null !== $pref ) {
+				$blog_details = get_blog_details( $b_id );
+				if ( $blog_details ) {
+					$opposing_settings[] = array(
+						'type'    => __( 'Blog', 'scoped-notify' ),
+						'name'    => $blog_details->blogname,
+						'link'    => get_home_url( $b_id ),
+						'setting' => $pref->get_label(),
+					);
+				}
+			}
+		}
+
+		foreach ( $term_settings as $setting ) {
+			$b_id = (int) $setting->blog_id;
+			$t_id = (int) $setting->term_id;
+			$pref = $this->get_term_preference_helper( $user_id, $b_id, $t_id );
+			if ( null !== $pref && isset( $term_details[ $b_id ][ $t_id ] ) ) {
+				$detail              = $term_details[ $b_id ][ $t_id ];
+				$opposing_settings[] = array(
+					'type'    => __( 'Term', 'scoped-notify' ),
+					'name'    => $detail['name'],
+					'link'    => get_term_link( $t_id, $detail['taxonomy'] ),
+					'setting' => $pref->get_label(),
+				);
+			}
+		}
+
+		foreach ( $post_settings as $setting ) {
+			$b_id = (int) $setting->blog_id;
+			$p_id = (int) $setting->post_id;
+			$pref = User_Preferences::get_post_preference( $user_id, $b_id, $p_id );
+			if ( null !== $pref && isset( $post_details[ $b_id ][ $p_id ] ) ) {
+				$opposing_settings[] = array(
+					'type'    => __( 'Post', 'scoped-notify' ),
+					'name'    => $post_details[ $b_id ][ $p_id ],
+					'link'    => get_blog_permalink( $b_id, $p_id ),
+					'setting' => $pref->get_label(),
+				);
+			}
+		}
+
+		return $opposing_settings;
+	}
+
+	/**
 	 * Extracts mentioned user IDs from content.
 	 * Looks for @username patterns.
 	 *
 	 * @param string $content The content to scan (post_content or comment_content).
 	 * @return array List of user IDs mentioned.
 	 */
-	private function get_mentioned_user_ids( string $content ): array {
+	public function get_mentioned_user_ids( string $content ): array {
 		$mentioned_ids = array();
 		// Simple regex for @username - adjust if needed for allowed characters
 		if ( \preg_match_all( '/@([a-zA-Z0-9_-]+)/', $content, $matches ) ) {
@@ -391,7 +574,7 @@ class Notification_Resolver {
 	 * @param string $channel     The notification channel.
 	 * @return int|null Trigger ID or null if not found.
 	 */
-	private function get_trigger_id( string $trigger_key, string $channel ): ?int {
+	public function get_trigger_id( string $trigger_key, string $channel ): ?int {
 		$logger = self::logger();
 
 		$sql = $this->wpdb->prepare(
@@ -418,13 +601,65 @@ class Notification_Resolver {
 	}
 
 	/**
+	 * Helper to reconstruct a Notification_Preference for a term, as User_Preferences lacks this.
+	 *
+	 * @param int $user_id
+	 * @param int $blog_id
+	 * @param int $term_id
+	 * @return Notification_Preference|null
+	 */
+	private function get_term_preference_helper( int $user_id, int $blog_id, int $term_id ): ?Notification_Preference {
+		$table = SCOPED_NOTIFY_TABLE_SETTINGS_TERMS;
+		$sql   = $this->wpdb->prepare(
+			'SELECT t.trigger_key, s.mute
+ 			FROM %i t
+ 			LEFT JOIN %i s ON s.trigger_id = t.trigger_id AND s.user_id = %d AND s.blog_id = %d AND s.term_id = %d
+ 			WHERE t.channel = %s',
+			SCOPED_NOTIFY_TABLE_TRIGGERS,
+			$table,
+			$user_id,
+			$blog_id,
+			$term_id,
+			'mail'
+		);
+
+		$rows = $this->wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( empty( $rows ) ) {
+			return null;
+		}
+
+		$muted = array();
+		foreach ( $rows as $row ) {
+			if ( null !== $row->trigger_key ) {
+				$muted[ $row->trigger_key ] = $row->mute;
+			}
+		}
+
+		$muted_post_post    = $muted[ Trigger_Key::Post_Post->value ] ?? null;
+		$muted_comment_post = $muted[ Trigger_Key::Comment_Post->value ] ?? null;
+
+		// If either setting is missing, we can't determine the preference.
+		if ( null === $muted_post_post || null === $muted_comment_post ) {
+			return null;
+		}
+
+		return match ( true ) {
+			'0' === $muted_post_post && '0' === $muted_comment_post => Notification_Preference::Posts_And_Comments,
+			'0' === $muted_post_post && '1' === $muted_comment_post => Notification_Preference::Posts_Only,
+			'1' === $muted_post_post && '1' === $muted_comment_post => Notification_Preference::No_Notifications,
+			default => null,
+		};
+	}
+
+	/**
 	 * Placeholder: Get user IDs associated with a specific blog.
 	 * Needs implementation, likely using get_users() with blog_id filter.
 	 *
 	 * @param int $blog_id The blog ID.
-	 * @return array List of user IDs. Returns empty array if no users found or on error.
+	 * @return integer[] List of user IDs. Returns empty array if no users found or on error.
 	 */
-	private function get_blog_member_ids( int $blog_id ): array {
+	public function get_blog_member_ids( int $blog_id ): array {
 		$logger = self::logger();
 
 		if ( ! \function_exists( 'get_users' ) ) {
