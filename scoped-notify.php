@@ -139,7 +139,7 @@ function enqueue_scripts() {
 	wp_register_style( 'scoped-notify', $plugin_dir . '/css/scoped-notify.css', array(), SCOPED_NOTIFY_VERSION );
 	wp_enqueue_style( 'scoped-notify' );
 
-	wp_register_script( 'scoped-notify', $plugin_dir . '/js/scoped-notify.js', array( 'jquery' ), null, false );
+	wp_register_script( 'scoped-notify', $plugin_dir . '/js/scoped-notify.js', array( 'jquery' ), '250902', false );
 
 	wp_localize_script(
 		'scoped-notify',
