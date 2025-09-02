@@ -19,7 +19,9 @@ A WordPress plugin designed to provide granular control over notifications for n
 ```bash
 # this needs to run in a container where there is mysqladmin installed.
 bash ./tests/bin/install-wp-tests.sh scoped_notify_test root devpw 127.0.0.1 latest
+bash ./tests/bin/run-query.sh "show tables"
 composer test
+
 ```
 
 An [example](https://github.com/ProgressPlanner/fewer-tags/blob/develop/.github/workflows/phpunit.yml) for a github-integration (so tests run on push).
