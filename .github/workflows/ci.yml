@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: devpw
+          MYSQL_DATABASE: scoped_notify_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y default-mysql-client
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Wait for MySQL to be ready
+        run: |
+          echo "Waiting for MySQL..."
+          for i in {1..30}; do
+            if mysqladmin ping -h127.0.0.1 -P3306 --silent; then
+              echo "MySQL is up"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Install WordPress unit test environment
+        run: bash ./tests/bin/install-wp-tests.sh scoped_notify_test root devpw 127.0.0.1 latest
+
+      - name: Run tests
+        run: composer test
