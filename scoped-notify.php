@@ -25,7 +25,6 @@ define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cr
 // names for site_options
 define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' ); // how many email adresses to use in bcc:
 define( 'SCOPED_NOTIFY_EMAIL_TO_ADDRESS', 'scoped_notify_email_to_address' ); // the to-adress for the mails
-define( 'SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS', 'scoped_notify_send_notifications_for_private_posts' ); // true == send notifications for private posts, false = do not send
 
 // the global default if no special notification settings exist on any level
 define( 'SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE', true ); // the default notification
@@ -178,7 +177,6 @@ function activate_plugin() {
 
 	\add_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 400 );
 	\add_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS, '' );
-	\add_site_option( SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS, true );
 
 	try {
 		$config_file = SCOPED_NOTIFY_PLUGIN_DIR . 'config/database-tables.php';
@@ -276,7 +274,6 @@ function deactivate_plugin() {
 
 	\delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE );
 	\delete_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS );
-	\delete_site_option( SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS );
 }
 
 /**

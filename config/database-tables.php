@@ -15,7 +15,7 @@ return array(
 		'name'    => SCOPED_NOTIFY_TABLE_TRIGGERS,
 		'columns' => array(
 			'trigger_id'  => 'bigint(20) unsigned NOT NULL AUTO_INCREMENT',
-			'trigger_key' => 'varchar(50) NOT NULL', // e.g., post-post, comment-post
+			'trigger_key' => 'varchar(50) NOT NULL', // e.g. post-post, post-${post_type}, comment-${post_type}.
 			'channel'     => "varchar(50) NOT NULL DEFAULT 'mail'",
 		),
 		'create'  => 'CREATE TABLE {name} (

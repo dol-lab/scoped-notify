@@ -296,7 +296,7 @@ class Notification_Queue {
 
 		$result = $this->wpdb->insert( $this->notifications_table_name, $data, $format );
 
-		if ( $result === false ) {
+		if ( false === $result ) {
 			$logger->error(
 				'Failed to insert notification.',
 				array(
@@ -381,27 +381,6 @@ class Notification_Queue {
 	public function handle_new_post( int $post_id, \WP_Post $post ) {
 		$logger = self::logger();
 
-		// Basic check: only queue for specific post types if needed, e.g., 'post'
-		// TODO: Make post types configurable
-		if ( 'post' !== $post->post_type ) {
-			$logger->debug( "Wrong post type - no notifications sent - post type:".$post->post_type );
-			return;
-		}
-
-		if ( 'publish' === $post->post_status ) {
-			// do nothing => continue with function
-		}
-		elseif ( 'private' === $post->post_status && \get_site_option(SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS,false) ) {
-			// private post, and notifications for private posts are activated => continue with function
-		}
-		elseif ( 'private' === $post->post_status ) {
-			$logger->debug( 'skipping notification for private post, SCOPED_NOTIFY_SEND_NOTIFICATIONS_FOR_PRIVATE_POSTS is missing or false' );
-			return;
-		}
-		else {
-			$logger->debug( 'Wrong post status - no notifications sent' );
-			return;
-		}
 		// Avoid infinite loops if updates trigger saves
 		// Use global namespace for WordPress constants
 		// this is likely not necessary
@@ -409,9 +388,27 @@ class Notification_Queue {
 			$logger->debug( 'Autosave - no notifications sent' );
 			return;
 		}
+
+		// @todo: maybe this should be status transition? -> then we have an issue if a users goes back and forth.
+		$send_for_post_statuses = apply_filters( 'scoped_notify_send_for_post_status', array( 'publish' ) );
+		if ( ! in_array( $post->post_status, $send_for_post_statuses, true ) ) {
+			$configured_statuses = implode( ', ', $send_for_post_statuses );
+			$logger->debug( "Post status '{$post->post_status}' not in configured statuses ({$configured_statuses}) - no notifications sent" );
+			return;
+		}
+
 		// Check if this is a revision
 		if ( wp_is_post_revision( $post_id ) ) {
 			$logger->debug( 'Revision - no notifications sent' );
+			return;
+		}
+
+		$all_post_triggers = $this->get_post_triggers();
+		$selected_triggers = array_filter( $all_post_triggers, fn( $t ) => $t->post_type === $post->post_type );
+
+		if ( empty( $selected_triggers ) ) {
+			$configured_types = implode( ', ', array_map( fn( $t ) => $t->post_type, $all_post_triggers ) );
+			$logger->debug( "Post type '{$post->post_type}' not in configured types ({$configured_types}) - no notifications sent" );
 			return;
 		}
 
@@ -427,42 +424,18 @@ class Notification_Queue {
 		// For 'save_post', we might queue on every update of a published post. Let's assume that's okay for now.
 		// If only needed on first publish, hook 'publish_post' or check status transition.
 
-		$blog_id     = \get_current_blog_id();
-		$reason      = 'new_post'; // Or 'post_updated' if we distinguish
-		$object_type = 'post';
-		$trigger_key = 'post-post'; // Trigger key for new/updated posts of type 'post'
+		$blog_id = \get_current_blog_id();
 
-		// Find the trigger_id for this trigger_key
-		// A single event (like saving a post) might match multiple triggers (e.g., different channels)
-		$trigger_ids = $this->wpdb->get_col(
-			$this->wpdb->prepare(
-				'SELECT trigger_id FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_key = %s',
-				$trigger_key
-			)
-		);
-
-		if ( empty( $trigger_ids ) ) {
-			$logger->debug(
-				"No triggers found for key '{$trigger_key}'. No notifications queued.",
-				array(
-					'post_id' => $post_id,
-					'blog_id' => $blog_id,
-				)
-			);
-			return;
-		}
-
-		$total_queued = 0;
-		foreach ( $trigger_ids as $trigger_id ) {
-			$queued_count  = $this->queue_event_notifications( $object_type, $post_id, $reason, $blog_id, array(), (int) $trigger_id );
-			$total_queued += $queued_count;
+		foreach ( $selected_triggers as $t ) {
+			$reason       = 'new_' . $t->post_type; // 'new_post' or 'new_page' etc.
+			$queued_count = $this->queue_event_notifications( $t->object_type, $post_id, $reason, $blog_id, array(), (int) $t->trigger_id );
 		}
 		$logger->info(
 			"Finished queuing for '{$reason}' event.",
 			array(
-				'trigger_key'  => $trigger_key,
+				'triggers'     => wp_json_encode( $selected_triggers ),
 				'post_id'      => $post_id,
-				'total_queued' => $total_queued,
+				'total_queued' => count( $selected_triggers ),
 			)
 		);
 
@@ -470,8 +443,44 @@ class Notification_Queue {
 	}
 
 	/**
+	 * Retrieves all defined triggers from the database (this is never much data).
+	 * @phpstan-type TriggerObject object{ trigger_id: int, trigger_key: string, channel: string, object_type: string, post_type: string }
+	 *
+	 * @return TriggerObject[]
+	 */
+	public function get_triggers(): array {
+		$results = $this->wpdb->get_results( 'SELECT * FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		foreach ( $results as &$result ) {
+			list( $object_type, $post_type ) = explode( '-', $result->trigger_key );
+			$result->object_type             = $object_type; // this is either 'post' or 'comment'.
+			$result->post_type               = $post_type; // this is the post-type. so you can also specify, that there is a comment on a 'page'.
+		}
+		return $results;
+	}
+
+	/**
+	 * Returns all triggers related to posts (not post-type "post" but any post type).
+	 *
+	 * @return TriggerObject[]
+	 */
+	public function get_post_triggers(): array {
+		return array_filter( $this->get_triggers(), fn( $t ) => 'post' === $t->object_type );
+	}
+
+	/**
+	 * Returns all triggers related to comments.
+	 *
+	 * @return TriggerObject[]
+	 */
+	public function get_comment_triggers(): array {
+		return array_filter( $this->get_triggers(), fn( $t ) => 'comment' === $t->object_type );
+	}
+
+	/**
 	 * Handles the 'wp_insert_comment' action hook.
 	 * Finds the relevant trigger and queues notifications for recipients.
+	 *
+	 * @todo: use get_comment_triggers, like in handle_new_post.
 	 *
 	 * @param int         $comment_id The comment ID.
 	 * @param \WP_Comment $comment    The comment object. Use FQN
@@ -480,7 +489,7 @@ class Notification_Queue {
 		$logger = self::logger();
 
 		// Only queue for approved comments
-		if ( $comment->comment_approved !== '1' ) {
+		if ( 1 !== $comment->comment_approved ) {
 			return;
 		}
 
