@@ -8,6 +8,26 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
+ * Shows a callout with specified content.
+ *
+ * @param {HTMLElement} trigger The element that triggers the callout.
+ * @param {string} html The HTML content to display.
+ * @param {boolean} [isError=false] True to apply error styling.
+ */
+const showCallout = (trigger, html, isError = false) => {
+	const callout = trigger?.closest('.scoped-notify-options')?.querySelector('.callout.warning');
+	if (!callout) return;
+
+	// Find content area and set its HTML if it exists
+	const content = callout.querySelector('.callout-content');
+	if (content) content.innerHTML = html;
+
+	// Toggle error class and show the callout
+	callout.classList.toggle('alert', isError);
+	callout.style.display = 'block';
+};
+
+/**
  * Displays a warning callout with a list of settings that oppose the user's new selection.
  * For example, if a user turns notifications on globally, this will list any specific sites or posts
  * where notifications are explicitly turned off.
@@ -17,40 +37,34 @@ document.addEventListener('DOMContentLoaded', () => {
  * @param {string} selectedValue The new value selected by the user (e.g., 'activate-notifications').
  */
 const displayOpposingSettings = (triggerElement, opposingSettings, selectedValue) => {
-	const container = triggerElement.closest('.scoped-notify-options');
-	if (!container) return;
-
-	const callout = container.querySelector('.callout.warning');
-	if (!callout) return;
-
-	const calloutContent = callout.querySelector('.callout-content');
-	if (!calloutContent) return;
+	// If there are no opposing settings, hide the callout (if present) and return.
+	if (!Array.isArray(opposingSettings) || opposingSettings.length === 0) {
+		const container = triggerElement ? triggerElement.closest('.scoped-notify-options') : null;
+		if (container) {
+			const callout = container.querySelector('.callout.warning');
+			if (callout) {
+				callout.style.display = 'none';
+				callout.classList.remove('callout-error');
+			}
+		}
+		return;
+	}
 
 	// Determine the introductory message based on whether the user is activating or deactivating notifications.
 	const isDeactivating = selectedValue.includes('deactivate') || selectedValue.includes('no-notifications');
 	const introMessage = isDeactivating ? ScopedNotify.i18n.profile_notifications_off : ScopedNotify.i18n.profile_notifications_on;
 
-	// Clear previous content and build the new list of opposing settings.
-	calloutContent.innerHTML = '';
+	// Build the list of opposing settings as HTML.
+	const itemsHtml = opposingSettings.map(setting => {
+		const safeName = setting.name || '';
+		const safeType = setting.type || '';
+		const href = setting.link || '#';
+		return `<li><a href="${href}">${safeName} (${safeType})</a></li>`;
+	}).join('');
 
-	const introParagraph = document.createElement('p');
-	introParagraph.innerHTML = introMessage; // Use innerHTML to render the <strong> tag.
+	const fullHtml = `<p>${introMessage}</p><ul class="ul-disc">${itemsHtml}</ul>`;
 
-	const list = document.createElement('ul');
-	list.className = 'ul-disc';
-
-	opposingSettings.forEach(setting => {
-		const listItem = document.createElement('li');
-		const link = document.createElement('a');
-		link.href = setting.link;
-		link.textContent = `${setting.name} (${setting.type})`;
-		listItem.appendChild(link);
-		list.appendChild(listItem);
-	});
-
-	calloutContent.appendChild(introParagraph);
-	calloutContent.appendChild(list);
-	callout.style.display = 'block';
+	showCallout(triggerElement, fullHtml, false);
 };
 
 /**
@@ -83,7 +97,7 @@ const sendScopedNotifyRequest = async (settings, reloadOnSuccess = false, trigge
 		const opposing = responseData.opposing_settings;
 
 		// If there are conflicting settings, display them.
-		if (triggerElement && Array.isArray(opposing) && opposing.length > 0) {
+		if (triggerElement && Array.isArray(opposing)) {
 			displayOpposingSettings(triggerElement, opposing, settings.value);
 		}
 
@@ -91,8 +105,15 @@ const sendScopedNotifyRequest = async (settings, reloadOnSuccess = false, trigge
 			location.reload();
 		}
 	} catch (error) {
-		// On failure, reload the page to show the last-known correct state.
-		location.reload();
+		// On failure, show an error in the callout if possible; otherwise reload the page.
+		if (triggerElement) {
+			const message = (error && error.message) ? error.message : ScopedNotify.i18n.request_failed || 'An error occurred';
+			const errorHtml = `<p><strong>Error:</strong> ${message}</p>`;
+			// showCallout is defined above displayOpposingSettings
+			showCallout(triggerElement, errorHtml, true);
+		} else {
+			location.reload();
+		}
 	}
 };
 
