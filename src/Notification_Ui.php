@@ -28,8 +28,8 @@ class Notification_Ui {
 
 	/**
 	 * adds radiogroup with blog settings wrapped as settings-item, called by filter 'default_space_setting' in theme 'defaultspace'
-	 * @param array $settings_items
-	 * @return array    $settings_items with added radiogroup
+	 * @param array $settings_items .
+	 * @return array $settings_items with added radiogroup
 	 */
 	public function add_blog_settings_item( array $settings_items ) {
 		$blog_id = get_current_blog_id();
@@ -68,7 +68,7 @@ class Notification_Ui {
 		if ( ! is_user_member_of_blog( wp_get_current_user()->ID, $blog_id ) ) {
 			return $buttons;
 		}
-		if ( $post->post_type !== 'post' ) {
+		if ( 'post' !== $post->post_type ) {
 			return $buttons;
 		}
 

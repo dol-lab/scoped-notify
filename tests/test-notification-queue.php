@@ -5,6 +5,7 @@
  * @package Scoped_Notify
  */
 
+use PHPUnit\Framework\MockObject\MockObject;
 /**
  * Test class for Notification_Queue.
  */
@@ -13,14 +14,14 @@ class Test_Notification_Queue extends WP_UnitTestCase {
 	/**
 	 * Mock resolver.
 	 *
-	 * @var \Scoped_Notify\Notification_Resolver
+	 * @var \Scoped_Notify\Notification_Resolver&MockObject
 	 */
 	private $resolver;
 
 	/**
 	 * Mock scheduler.
 	 *
-	 * @var \Scoped_Notify\Notification_Scheduler
+	 * @var \Scoped_Notify\Notification_Scheduler&MockObject
 	 */
 	private $scheduler;
 

@@ -8,6 +8,8 @@
  * Domain Path:       /languages
  * Network:           True
  * Namespace:         Scoped_Notify
+ *
+ * @package Scoped_Notify
  */
 
 namespace Scoped_Notify;
@@ -100,15 +102,18 @@ register_meta(
  */
 function in_plugins_loaded() {
 	global $wpdb; // Make sure $wpdb is available.
-	$logger        = Logger::create();
 	$resolver      = new Notification_Resolver( $wpdb );
 	$scheduler     = new Notification_Scheduler( $wpdb ); // Instantiate scheduler
 	$queue_manager = new Notification_Queue( $resolver, $scheduler, $wpdb ); // Pass scheduler
+	$hooks_manager = new Notification_Hooks( $queue_manager );
 
 	// Add hooks for triggering queue additions.
 	// note: the handle_new_post function must be called after "save_post", because in save_post the meta-values are not yet set.
 	add_action( 'wp_after_insert_post', array( $queue_manager, 'handle_new_post' ), 10, 2 );
 	add_action( 'wp_insert_comment', array( $queue_manager, 'handle_new_comment' ), 10, 2 );
+
+	add_action( 'delete_post', array( $hooks_manager, 'hook_trash_delete_post' ), 10, 1 );
+	add_action( 'wp_trash_post', array( $hooks_manager, 'hook_trash_delete_post' ), 10, 1 );
 
 	// Register WP-CLI command if WP_CLI is defined.
 	// Note: WP_CLI constant is defined by WP-CLI itself.
