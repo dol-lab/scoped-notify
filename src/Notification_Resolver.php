@@ -81,7 +81,7 @@ class Notification_Resolver {
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ),             // for term settings
 			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id, $trigger_id ),             // for blog settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE, $trigger_id ),                        // for network settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES, $trigger_id ),                        // for network settings
 			$potential_recipient_ids                    // final where statement user_id IN (...)
 		);
 
@@ -254,7 +254,7 @@ class Notification_Resolver {
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id, $trigger_id ), // for term settings
 			! empty( $term_ids ) ? $term_ids : array(),                                 // for term settings term_id IN (...)
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id, $trigger_id ),  // for blog settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE, $trigger_id ),    // for network settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES, $trigger_id ),    // for network settings
 			$potential_recipient_ids                    // final where statement user_id IN (...)
 		);
 

@@ -26,25 +26,6 @@ return array(
 	),
 	array(
 		/**
-		 * Stores the user's preferred notification delivery schedule (e.g., immediate, daily, weekly) per blog and channel.
-		 * Defaults are set in code if no entry exists.
-		 */
-		'name'    => SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES,
-		'columns' => array(
-			'user_id'       => 'bigint(20) NOT NULL',
-			'blog_id'       => 'bigint(20) NOT NULL',
-			'schedule_type' => 'varchar(20) NOT NULL', // 'immediate', 'daily', 'weekly'. wip.
-			'channel'       => "varchar(50) NOT NULL DEFAULT 'mail'", // Explicitly 'mail', 'push', etc.
-		),
-		'create'  => 'CREATE TABLE {name} (
-            {columns_create},
-            PRIMARY KEY (`user_id`, `blog_id`, `channel`),
-            KEY `user_id` (`user_id`),
-            KEY `blog_id` (`blog_id`)
-        )',
-	),
-	array(
-		/**
 		 * Holds notifications waiting to be processed and sent.
 		 * Includes details like recipient, context, trigger, reason, and schedule.
 		 * @todo: if a post is published in a blog with 3 subscribers, 3 entries are created in this table.
@@ -75,6 +56,25 @@ return array(
             FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
+	array(
+		/**
+		 * Stores the user's preferred notification delivery schedule (e.g., immediate, daily, weekly) per blog and channel.
+		 * Defaults are set in code if no entry exists.
+		 */
+		'name'    => SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES,
+		'columns' => array(
+			'user_id'       => 'bigint(20) NOT NULL',
+			'blog_id'       => 'bigint(20) NOT NULL',
+			'schedule_type' => 'varchar(20) NOT NULL', // 'immediate', 'daily', 'weekly'. wip.
+			'channel'       => "varchar(50) NOT NULL DEFAULT 'mail'", // Explicitly 'mail', 'push', etc.
+		),
+		'create'  => 'CREATE TABLE {name} (
+            {columns_create},
+            PRIMARY KEY (`user_id`, `blog_id`, `channel`),
+            KEY `user_id` (`user_id`),
+            KEY `blog_id` (`blog_id`)
+        )',
+	),
 	/**
 	 * ######################################################################
 	 * The following tables are used to store user notification preferences.
@@ -85,7 +85,7 @@ return array(
 		 * Stores user notification preferences that apply network-wide (across all blogs).
 		 * Set in the user's profile.
 		 */
-		'name'    => SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE,
+		'name'    => SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES,
 		'columns' => array(
 			'user_id'    => 'bigint(20) NOT NULL',
 			'trigger_id' => 'bigint(20) unsigned NOT NULL',
@@ -97,6 +97,13 @@ return array(
             KEY `user_id` (`user_id`),
             FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
+		'updates' => array(
+			'0.3.0' => array(
+				// Rename table to plural form.
+				'ALTER TABLE scoped_notify_settings_user_profile RENAME TO ' . SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES,
+
+			),
+		),
 	),
 	array(
 		/**

@@ -18,29 +18,29 @@ namespace Scoped_Notify;
 defined( 'ABSPATH' ) || exit;
 
 // Define constants
-define( 'SCOPED_NOTIFY_VERSION', '0.2.0' ); // Incremented version to trigger DB update
+define( 'SCOPED_NOTIFY_VERSION', '0.3.0' ); // Incremented version to trigger DB update
 define( 'SCOPED_NOTIFY_PLUGIN_FILE', __FILE__ );
 define( 'SCOPED_NOTIFY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOPED_NOTIFY_DB_VERSION_OPTION', 'scoped_notify_db_version' );
 define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cron hook name.
 
-// names for site_options
+// Names for site_options
 define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' ); // how many email adresses to use in bcc:
 define( 'SCOPED_NOTIFY_EMAIL_TO_ADDRESS', 'scoped_notify_email_to_address' ); // the to-adress for the mails
 
-// the global default if no special notification settings exist on any level
+// The global default if no special notification settings exist on any level
 define( 'SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE', true ); // the default notification
 
-// define table names as constants
+// Define table names as constants
 define( 'SCOPED_NOTIFY_TABLE_TRIGGERS', 'scoped_notify_triggers' );
 define( 'SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES', 'scoped_notify_user_blog_schedules' );
 define( 'SCOPED_NOTIFY_TABLE_QUEUE', 'scoped_notify_queue' );
-define( 'SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE', 'scoped_notify_settings_user_profile' );
+define( 'SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES', 'scoped_notify_settings_user_profiles' );
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS', 'scoped_notify_settings_blogs' );
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_TERMS', 'scoped_notify_settings_terms' );
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_post_comments' );
 
-// this meta is used so a post can set this to "no" if no notification should be sent out when the post is written.
+// This meta is used so a post can set this to "no" if no notification should be sent out when the post is written.
 define( 'SCOPED_NOTIFY_META_NOTIFY_OTHERS', 'scoped_notify_notify_others' );
 
 // Include Composer autoloader if it exists.
@@ -52,7 +52,7 @@ if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 		'admin_notices',
 		function () {
 			$msg = esc_html__( 'Scoped Notify Error: Composer dependencies not found. Please run "composer install" in the plugin directory.', 'scoped-notify' );
-			echo "<div class='notice notice-error'><p>$msg</p></div>";
+			echo "<div class='notice notice-error'><p>$msg</p></div>"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 	);
 	return;

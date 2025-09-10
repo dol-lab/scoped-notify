@@ -111,7 +111,7 @@ class User_Preferences {
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id ),              // for term settings
 			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
 			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id ),              // for blog settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE ),                 // network settings
+			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES ),                 // network settings
 			array( $user_id )
 		);
 
@@ -378,7 +378,7 @@ class User_Preferences {
 	 */
 	private static function get_table_name( Scope $scope ): string|null {
 		return match ( $scope ) {
-			Scope::Network => SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILE,
+			Scope::Network => SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES,
 			Scope::Blog    => SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS,
 			Scope::Post    => SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS,
 			default        => null,
