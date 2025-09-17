@@ -115,6 +115,14 @@ function in_plugins_loaded() {
 	add_action( 'delete_post', array( $hooks_manager, 'hook_trash_delete_post' ), 10, 1 );
 	add_action( 'wp_trash_post', array( $hooks_manager, 'hook_trash_delete_post' ), 10, 1 );
 
+	// use wpmu_delete_user for multisites
+	add_action( 'wpmu_delete_user', array( $hooks_manager, 'hook_delete_user' ), 10, 1 );
+
+	// use wp_uninitialize_site similar to Activity_Hooks.php
+	add_action( 'wp_uninitialize_site', array( $hooks_manager, 'hook_delete_blog' ), 10, 1 );
+
+	add_action( 'delete_term', array( $hooks_manager, 'hook_delete_term' ), 10, 1 );
+
 	// Register WP-CLI command if WP_CLI is defined.
 	// Note: WP_CLI constant is defined by WP-CLI itself.
 	if ( defined( '\WP_CLI' ) && \WP_CLI ) {

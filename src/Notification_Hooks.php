@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 class Notification_Hooks {
 
 	/**
-	 * @var Notification_Queue
+	 * @var Notification_Queue   * TODO check if this is needed, seems not to be
 	 */
 	protected $queue_manager;
 
@@ -107,6 +107,131 @@ class Notification_Hooks {
 					'rows_affected' => $result,
 				)
 			);
+		}
+	}
+
+	public function hook_delete_user( $user_id ) {
+		global $wpdb;
+		$logger = Logger::create();
+
+		$data = array( "user_id" => $user_id );
+
+		$tables = array(
+			SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES,
+			SCOPED_NOTIFY_TABLE_QUEUE,
+			SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES,
+			SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS,
+			SCOPED_NOTIFY_TABLE_SETTINGS_TERMS,
+			SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS
+		);
+
+		foreach ($tables as $table) {
+			$result = $wpdb->delete( $table, $data, '%d' );
+
+			if ( false === $result ) {
+				$logger->error(
+					"Failed to delete user entries for user {$user_id} in table {$table}",
+					array(
+						'user_id'    => $user_id,
+						'table_name' => $table,
+						'db_error'   => $wpdb->last_error,
+					)
+				);
+			} elseif ( $result > 0 ) {
+				$logger->debug(
+					"Deleted user entries for user {$user_id} in table {$table}",
+					array(
+						'user_id'    	=> $user_id,
+						'table_name' 	=> $table,
+						'rows_affected' => $result,
+					)
+				);
+			}
+
+		}
+
+	}
+
+	public function hook_delete_blog( $blog_id ) {
+		global $wpdb;
+		$logger = Logger::create();
+
+		$data = array( "blog_id" => $blog_id );
+
+		$tables = array(
+			SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES,
+			SCOPED_NOTIFY_TABLE_QUEUE,
+			SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS,
+			SCOPED_NOTIFY_TABLE_SETTINGS_TERMS,
+			SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS
+		);
+
+		foreach ($tables as $table) {
+			$result = $wpdb->delete( $table, $data, '%d' );
+
+			if ( false === $result ) {
+				$logger->error(
+					"Failed to delete blog entries for blog {$blog_id} in table {$table}",
+					array(
+						'blog_id'    => $blog_id,
+						'table_name' => $table,
+						'db_error'   => $wpdb->last_error,
+					)
+				);
+			} elseif ( $result > 0 ) {
+				$logger->debug(
+					"Deleted blog entries for blog {$blog_id} in table {$table}",
+					array(
+						'blog_id'    	=> $blog_id,
+						'table_name' 	=> $table,
+						'rows_affected' => $result,
+					)
+				);
+			}
+
+		}
+	}
+
+	public function hook_delete_term( $term_id ) {
+		global $wpdb;
+		$logger = Logger::create();
+
+		$blog_id = get_current_blog_id();
+
+		$data = array(
+			'term_id' => $term_id,
+			'blog_id' => $blog_id
+		);
+
+		$tables = array(
+			SCOPED_NOTIFY_TABLE_SETTINGS_TERMS,
+		);
+
+		foreach ($tables as $table) {
+			$result = $wpdb->delete( $table, $data, array( '%d', '%d' ) );
+
+			if ( false === $result ) {
+				$logger->error(
+					"Failed to delete term entries for term {$term_id} in blog {$blog_id} in table {$table}",
+					array(
+						'term_id' 	 => $term_id,
+						'blog_id'    => $blog_id,
+						'table_name' => $table,
+						'db_error'   => $wpdb->last_error,
+					)
+				);
+			} elseif ( $result > 0 ) {
+				$logger->debug(
+					"Deleted blog entries for term {$term_id} in blog {$blog_id} in table {$table}",
+					array(
+						'term_id' 	 	=> $term_id,
+						'blog_id'    	=> $blog_id,
+						'table_name' 	=> $table,
+						'rows_affected' => $result,
+					)
+				);
+			}
+
 		}
 	}
 }
