@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Scoped Notify
- * Version:           0.2
+ * Version:           0.3
  * Author:            DolLab & V3
  * License:           GPL v2 or later
  * Text Domain:       scoped-notify
