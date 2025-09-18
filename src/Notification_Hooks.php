@@ -152,9 +152,15 @@ class Notification_Hooks {
 
 	}
 
-	public function hook_delete_blog( $blog_id ) {
+	public function hook_delete_blog( $blog ) {
 		global $wpdb;
 		$logger = Logger::create();
+
+		$site = get_site( $blog );
+		if ( empty( $site ) ) {
+			return new WP_Error( 'site_empty_id', __( 'Site ID must not be empty.' ) );
+		}
+		$blog_id = $site->id;
 
 		$data = array( "blog_id" => $blog_id );
 
