@@ -489,7 +489,7 @@ class Notification_Queue {
 		$logger = self::logger();
 
 		// Only queue for approved comments
-		if ( 1 !== $comment->comment_approved ) {
+		if ( '1' !== $comment->comment_approved ) {
 			return;
 		}
 
