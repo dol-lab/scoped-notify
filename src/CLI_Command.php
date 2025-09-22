@@ -255,11 +255,11 @@ class CLI_Command {
 			global $wpdb; // Make sure $wpdb is available
 			$logger        = Logger::create();
 			$resolver      = new Notification_Resolver( $wpdb, $logger );
-			$scheduler     = new Notification_Scheduler( $logger, $wpdb ); // Instantiate scheduler
-			$queue_manager = new Notification_Queue( $resolver, $scheduler, $logger, $wpdb ); // Pass scheduler
+			$scheduler     = new Notification_Scheduler( $wpdb ); // Instantiate scheduler
+			$queue_manager = new Notification_Queue( $resolver, $scheduler, $wpdb ); // Pass scheduler
 
 			// Resolve recipients (primarily for logging/dry-run info)
-			$recipient_ids = $resolver->get_recipients_for_comment( $comment, $channel );
+			$recipient_ids = $resolver->get_recipients_for_comment( $comment, $post, $channel );
 
 			if ( empty( $recipient_ids ) ) {
 				\WP_CLI::success( "No recipients found based on current settings for Comment ID {$comment_id}. No item queued." ); // Use FQN
@@ -271,7 +271,7 @@ class CLI_Command {
 				} else {
 					// Find the trigger_id first
 					$trigger_key = 'comment-' . $post->post_type;
-					$trigger_id  = $wpdb->get_var(
+					$trigger_id  = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 						$wpdb->prepare(
 							'SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1',
 							SCOPED_NOTIFY_TABLE_TRIGGERS,
