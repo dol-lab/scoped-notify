@@ -128,32 +128,27 @@ class Notification_Queue {
 
 			// 3. Resolve Recipients using the Notification_Resolver based on object type
 			// Ensure we are still on the correct blog context for the resolver
-			$recipients = array();
+			$recipient_ids = array();
 			if ( $object instanceof \WP_Post ) {
-				$recipients = $this->resolver->get_recipients_for_post( $object, $channel );
+				$recipient_ids = $this->resolver->get_recipients_for_post( $object, $channel );
 			} elseif ( $object instanceof \WP_Comment ) {
-				$recipients = $this->resolver->get_recipients_for_comment( $object, $channel );
-			} else {
-				// Allow extension for other object types
-				$recipients = \apply_filters( 'scoped_notify_resolve_recipients', array(), $object, $channel, $trigger_id );
-				if ( empty( $recipients ) ) {
-					$logger->warning(
-						'Recipient resolution not handled for object type.',
-						array(
-							'object_type' => $object_type,
-							'object_id'   => $object_id,
-							'channel'     => $channel,
-						)
-					);
+				$post = \get_post( $object->comment_post_ID );
+				if ( ! $post ) {
+					throw new \Exception( "Could not find parent post for comment ID {$object->comment_ID}." );
 				}
+				$recipient_ids = $this->resolver->get_recipients_for_comment( $object, $post, $channel );
 			}
 
-			if ( empty( $recipients ) ) {
+			// Allow extension for other object types or filtering recipients.
+			$recipient_ids = \apply_filters( 'scoped_notify_resolve_recipients', $recipient_ids, $object, $channel, $trigger_id );
+
+			if ( empty( $recipient_ids ) ) {
 				$logger->info(
 					'No recipients resolved for event.',
 					array(
 						'object_type' => $object_type,
 						'object_id'   => $object_id,
+						'channel'     => $channel,
 						'reason'      => $reason,
 						'blog_id'     => $blog_id,
 						'trigger_id'  => $trigger_id,
@@ -166,7 +161,7 @@ class Notification_Queue {
 			}
 
 			$logger->info(
-				'Resolved ' . \count( $recipients ) . ' recipients for event.',
+				'Resolved ' . \count( $recipient_ids ) . ' recipients for event.',
 				array(
 					'object_type' => $object_type,
 					'object_id'   => $object_id,
@@ -174,12 +169,12 @@ class Notification_Queue {
 					'blog_id'     => $blog_id,
 					'trigger_id'  => $trigger_id,
 					'channel'     => $channel,
-					'recipients'  => $recipients,
+					'recipients'  => $recipient_ids,
 				)
 			);
 
 			// 4. Loop through recipients, determine schedule, and insert notification
-			foreach ( $recipients as $user_id ) {
+			foreach ( $recipient_ids as $user_id ) {
 				// Use the scheduler to get schedule and calculate send time
 				$user_schedule       = $this->scheduler->get_user_schedule( $user_id, $blog_id, $channel );
 				$scheduled_send_time = $this->scheduler->calculate_scheduled_send_time( $user_schedule ); // Returns null for immediate
@@ -243,7 +238,7 @@ class Notification_Queue {
 				'reason'           => $reason,
 				'blog_id'          => $blog_id,
 				'trigger_id'       => $trigger_id,
-				'total_recipients' => count( $recipients ),
+				'total_recipients' => count( $recipient_ids ),
 			)
 		);
 
@@ -483,7 +478,7 @@ class Notification_Queue {
 	 * @todo: use get_comment_triggers, like in handle_new_post.
 	 *
 	 * @param int         $comment_id The comment ID.
-	 * @param \WP_Comment $comment    The comment object. Use FQN
+	 * @param \WP_Comment $comment    The comment object.
 	 */
 	public function handle_new_comment( int $comment_id, \WP_Comment $comment ) {
 		$logger = self::logger();

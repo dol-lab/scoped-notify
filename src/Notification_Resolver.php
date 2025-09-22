@@ -126,7 +126,7 @@ class Notification_Resolver {
         ";
 
 		// Prepare the SQL statement
-		$prepared_sql = $this->wpdb->prepare( $sql, $query_args );
+		$prepared_sql = $this->wpdb->prepare( $sql, $query_args ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		// Check if prepare failed (returned empty string or false)
 
@@ -202,21 +202,14 @@ class Notification_Resolver {
 	 * Get the user IDs who should receive a notification for a specific comment.
 	 *
 	 * @param WP_Comment $comment The comment object.
+	 * @param WP_Post    $post    The parent post object of the comment.
 	 * @param string     $channel The notification channel (default 'mail').
 	 * @return array List of user IDs. Returns empty array on error.
 	 */
-	public function get_recipients_for_comment( WP_Comment $comment, string $channel = 'mail' ): array {
+	public function get_recipients_for_comment( WP_Comment $comment, WP_Post $post, string $channel = 'mail' ): array {
 		$logger = self::logger();
 
 		$blog_id = \get_current_blog_id(); // Assuming the action runs within the blog context.
-		$post    = \get_post( $comment->comment_post_ID );
-		if ( ! $post ) {
-			$logger->error(
-				'Could not find parent post for comment ID {comment_id}.',
-				array( 'comment_id' => $comment->comment_ID )
-			);
-			return array();
-		}
 
 		$logger->debug( 'Fetching recipients for blog ' . $blog_id . ' and post ' . $comment->comment_post_ID );
 
@@ -306,7 +299,7 @@ class Notification_Resolver {
 		$results      = $this->wpdb->get_results( $prepared_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		// Check for DB errors before proceeding
-		if ( $results === null ) {
+		if ( null === $results ) {
 			$logger->error(
 				'Database error occurred while fetching notification settings for comment.',
 				array(
