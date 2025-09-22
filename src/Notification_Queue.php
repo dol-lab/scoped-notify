@@ -112,7 +112,7 @@ class Notification_Queue {
 		try {
 			// 1. Get Channel from Trigger
 			$trigger = $this->wpdb->get_row(
-				$this->wpdb->prepare( 'SELECT channel FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_id = %d', $trigger_id )
+				$this->wpdb->prepare( 'SELECT channel FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_id = %d', $trigger_id ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			);
 			if ( ! $trigger || empty( $trigger->channel ) ) {
 				throw new \Exception( "Could not find trigger or channel for trigger_id: {$trigger_id}" );
@@ -339,9 +339,9 @@ class Notification_Queue {
 
 		$object = null;
 		try {
-			if ( $object_type === 'post' ) {
+			if ( 'post' === $object_type ) {
 				$object = \get_post( $object_id );
-			} elseif ( $object_type === 'comment' ) {
+			} elseif ( 'comment' === $object_type ) {
 				$object = \get_comment( $object_id );
 			} else {
 				// Allow extension for other object types
@@ -513,12 +513,8 @@ class Notification_Queue {
 		$trigger_key = 'comment-' . $post->post_type; // e.g., 'comment-post', 'comment-page'
 
 		// Find the trigger_id(s) for this trigger_key
-		$trigger_ids = $this->wpdb->get_col(
-			$this->wpdb->prepare(
-				'SELECT trigger_id FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_key = %s',
-				$trigger_key
-			)
-		);
+		$query       = 'SELECT trigger_id FROM ' . SCOPED_NOTIFY_TABLE_TRIGGERS . ' WHERE trigger_key = %s';
+		$trigger_ids = $this->wpdb->get_col( $this->wpdb->prepare( $query, $trigger_key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		if ( empty( $trigger_ids ) ) {
 			$logger->debug(
