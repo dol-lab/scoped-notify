@@ -373,7 +373,7 @@ class Notification_Queue {
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object. Use FQN
 	 */
-	public function handle_new_post( int $post_id, \WP_Post $post ) {
+	public function handle_new_post( int $post_id, \WP_Post $post, $updated, $post_before ) {
 		$logger = self::logger();
 
 		// Avoid infinite loops if updates trigger saves
@@ -389,6 +389,16 @@ class Notification_Queue {
 		if ( ! in_array( $post->post_status, $send_for_post_statuses, true ) ) {
 			$configured_statuses = implode( ', ', $send_for_post_statuses );
 			$logger->debug( "Post status '{$post->post_status}' not in configured statuses ({$configured_statuses}) - no notifications sent" );
+			return;
+		}
+
+		$status_before = isset( $post_before->post_status ) ? $post_before->post_status : 'none'; // none for new post.
+		/**
+		 * @todo: we might miss some people here, when a post is private, then set to publish:
+		 *        subscribers are not notified. we could add a notification here just for subscribers.
+		 */
+		if ( in_array( $status_before, $send_for_post_statuses ) ) {
+			$logger->debug( "status_before was $status_before. Notification has already been sent." );
 			return;
 		}
 

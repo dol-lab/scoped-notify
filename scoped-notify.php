@@ -109,7 +109,7 @@ function in_plugins_loaded() {
 
 	// Add hooks for triggering queue additions.
 	// note: the handle_new_post function must be called after "save_post", because in save_post the meta-values are not yet set.
-	add_action( 'wp_after_insert_post', array( $queue_manager, 'handle_new_post' ), 10, 2 );
+	add_action( 'wp_after_insert_post', array( $queue_manager, 'handle_new_post' ), 10, 4 );
 	add_action( 'wp_insert_comment', array( $queue_manager, 'handle_new_comment' ), 10, 2 );
 
 	add_action( 'delete_post', array( $hooks_manager, 'hook_trash_delete_post' ), 10, 1 );
