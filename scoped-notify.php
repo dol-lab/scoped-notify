@@ -3,6 +3,7 @@
  * Plugin Name:       Scoped Notify
  * Version:           0.3
  * Author:            DolLab & V3
+ * Description:       A flexible notification system for multisite WordPress installations, allowing users to customize notifications based on their preferences and site context.
  * License:           GPL v2 or later
  * Text Domain:       scoped-notify
  * Domain Path:       /languages
