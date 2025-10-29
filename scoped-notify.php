@@ -134,8 +134,6 @@ function in_plugins_loaded() {
 
 
 function init() {
-	$logger = Logger::create();
-
 	$ui = new Notification_Ui(); // Create html for notification
 	// Load text domain for localization.
 	load_plugin_textdomain( 'scoped-notify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
