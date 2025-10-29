@@ -27,19 +27,17 @@ class Logger {
 	public static function create(): LoggerInterface {
 		$logger = self::$logger ?? null;
 
-		// create a new logger if none was stored before
+		// create a new logger if none was stored before.
 		if ( null === $logger ) {
 			$logger = new Logger\Error_Log();
-
-			// set log level based on WP_DEBUG constant defined in wp-config.php
-			$logger->set_log_level(
-				defined( '\WP_DEBUG' ) && \WP_DEBUG
-				? 'debug'
-				: 'error'
-			);
-
-			// store logger in property
-			self::$logger = $logger;
+			// check if \Env\env function exists
+			if ( function_exists( '\Env\env' ) ) {
+				$level = \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL', ( defined( '\WP_DEBUG' ) && \WP_DEBUG ? 'info' : 'error' ) );
+			} else {
+				$level = ( defined( '\WP_DEBUG' ) && \WP_DEBUG ? 'info' : 'error' );
+			}
+			$logger->set_log_level( $level );
+			self::$logger = $logger; // store logger in property.
 		}
 
 		return $logger;
