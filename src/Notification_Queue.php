@@ -431,16 +431,18 @@ class Notification_Queue {
 
 		$blog_id = \get_current_blog_id();
 
+		$queued_count = 0;
 		foreach ( $selected_triggers as $t ) {
-			$reason       = 'new_' . $t->post_type; // 'new_post' or 'new_page' etc.
-			$queued_count = $this->queue_event_notifications( $t->object_type, $post_id, $reason, $blog_id, array(), (int) $t->trigger_id );
+			$reason        = 'new_' . $t->post_type; // 'new_post' or 'new_page' etc.
+			$queued_count += $this->queue_event_notifications( $t->object_type, $post_id, $reason, $blog_id, array(), (int) $t->trigger_id );
 		}
+
 		$logger->info(
 			"Finished queuing for '{$reason}' event.",
 			array(
 				'triggers'     => wp_json_encode( $selected_triggers ),
 				'post_id'      => $post_id,
-				'total_queued' => count( $selected_triggers ),
+				'total_queued' => $queued_count,
 			)
 		);
 
