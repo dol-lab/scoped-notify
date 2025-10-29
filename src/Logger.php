@@ -30,12 +30,12 @@ class Logger {
 		// create a new logger if none was stored before.
 		if ( null === $logger ) {
 			$logger = new Logger\Error_Log();
-			// check if \Env\env function exists
-			if ( function_exists( '\Env\env' ) ) {
-				$level = \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL', ( defined( '\WP_DEBUG' ) && \WP_DEBUG ? 'info' : 'error' ) );
-			} else {
-				$level = ( defined( '\WP_DEBUG' ) && \WP_DEBUG ? 'info' : 'error' );
+			$level  = defined( '\WP_DEBUG' ) && \WP_DEBUG ? 'info' : 'error';
+			// use log level from .env if defined.
+			if ( function_exists( '\Env\env' ) && ! empty( \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL' ) ) ) {
+				$level = \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL' );
 			}
+
 			$logger->set_log_level( $level );
 			self::$logger = $logger; // store logger in property.
 		}
