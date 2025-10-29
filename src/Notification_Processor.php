@@ -116,17 +116,24 @@ class Notification_Processor {
 				continue;
 			}
 
-			$users = array_map( fn( $user ) => \get_userdata( $user->user_id ), $user_list );
+			$user_ids = array_column( $user_list, 'user_id' );
+			$users    = get_users(
+				array(
+					'include' => $user_ids,
+					'fields'  => array( 'ID', 'user_email', 'display_name' ), // only what you need
+					'blog_id' => 0, // get users across all blogs
+				)
+			);
 
 			list($users_succeeded, $users_failed) = $this->process_single_notification( $item, $users ); // Process the single notification
 
 			// Update status based on processing result
 			foreach ( $users_succeeded as $user ) {
-				$this->update_notification_status( absint( $item->blog_id ), absint( $item->object_id ), $item->object_type, absint( $item->trigger_id ), absint( $user->user_id ), 'sent', true );
+				$this->update_notification_status( absint( $item->blog_id ), absint( $item->object_id ), $item->object_type, absint( $item->trigger_id ), absint( $user->id ), 'sent', true );
 				++$processed_count;
 			}
 			foreach ( $users_failed as $user ) {
-				$this->update_notification_status( absint( $item->blog_id ), absint( $item->object_id ), $item->object_type, absint( $item->trigger_id ), absint( $user->user_id ), 'failed', false );
+				$this->update_notification_status( absint( $item->blog_id ), absint( $item->object_id ), $item->object_type, absint( $item->trigger_id ), absint( $user->id ), 'failed', false );
 			}
 
 			if ( count( $users_failed ) > 0 ) {
