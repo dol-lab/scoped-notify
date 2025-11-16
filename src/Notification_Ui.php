@@ -168,7 +168,7 @@ class Notification_Ui {
 			<ul
 				data-scope='$scope'
 				data-blog-id='$blog_id'
-				class='js-scoped-notify-radiogroup scoped-notify-options-list radio-accordion success p-2 pt-0'
+				class='js-scoped-notify-radiogroup scoped-notify-options-list radio-accordion success p-3 pt-0'
 			>
 			" . self::get_options( $options, $radioname ) . '
 			</ul>
