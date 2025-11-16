@@ -115,12 +115,12 @@ class Notification_Ui {
 			<div class='scoped-notify-options scoped-notify-options--network'>
 				<ul
 					data-scope='$scope'
-					class='js-scoped-notify-radiogroup scoped-notify-options-list margin-0 radio-accordion success padding-top-0'
+					class='js-scoped-notify-radiogroup scoped-notify-options-list m-0 radio-accordion success pt-0'
 				>
 				" . self::get_options( $options, $radioname ) . '
 				</ul>
-				<div class="callout warning margin-top-1" data-closable style="display: none;">
-					<div class="callout-content pr-medium">Empty</div>
+				<div class="callout warning mt-4" data-closable style="display: none;">
+					<div class="callout-content pr-3">Empty</div>
 					<button class="close-button" aria-label="Dismiss alert" type="button" data-close>
 						<span aria-hidden="true">&times;</span>
 					</button>
@@ -168,7 +168,7 @@ class Notification_Ui {
 			<ul
 				data-scope='$scope'
 				data-blog-id='$blog_id'
-				class='js-scoped-notify-radiogroup scoped-notify-options-list radio-accordion success padding-medium padding-top-0'
+				class='js-scoped-notify-radiogroup scoped-notify-options-list radio-accordion success p-2 pt-0'
 			>
 			" . self::get_options( $options, $radioname ) . '
 			</ul>
