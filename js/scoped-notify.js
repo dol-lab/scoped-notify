@@ -118,6 +118,66 @@ const sendScopedNotifyRequest = async (settings, reloadOnSuccess = false, trigge
 };
 
 /**
+ * Sends ntfy.sh configuration to the server
+ *
+ * @param {number} blogId The blog ID
+ * @param {string} ntfyTopic The ntfy.sh topic
+ * @param {boolean} enabled Whether ntfy is enabled
+ * @param {HTMLElement} statusElement The status display element
+ */
+const saveNtfyConfig = async (blogId, ntfyTopic, enabled, statusElement) => {
+	try {
+		// Validate topic format
+		if (ntfyTopic && !/^[a-zA-Z0-9_-]+$/.test(ntfyTopic)) {
+			throw new Error('Invalid topic format. Only alphanumeric, hyphens, and underscores allowed.');
+		}
+
+		const endpoint = ScopedNotify.rest.endpoint.replace('/settings', '/ntfy-config');
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': ScopedNotify.rest.nonce,
+			},
+			body: JSON.stringify({
+				blog_id: blogId,
+				ntfy_topic: ntfyTopic,
+				enabled: enabled,
+			}),
+		});
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! Status: ${response.status}`);
+		}
+
+		const responseData = await response.json();
+
+		if (responseData.status === 'success') {
+			// Show success message
+			if (statusElement) {
+				statusElement.innerHTML = '✓ Configuration saved successfully';
+				statusElement.style.backgroundColor = '#d4edda';
+				statusElement.style.color = '#155724';
+				statusElement.style.display = 'block';
+				setTimeout(() => {
+					statusElement.style.display = 'none';
+				}, 3000);
+			}
+		} else {
+			throw new Error(responseData.message || 'Failed to save configuration');
+		}
+	} catch (error) {
+		// Show error message
+		if (statusElement) {
+			statusElement.innerHTML = '✗ ' + (error.message || 'Error saving configuration');
+			statusElement.style.backgroundColor = '#f8d7da';
+			statusElement.style.color = '#721c24';
+			statusElement.style.display = 'block';
+		}
+	}
+};
+
+/**
  * Initializes all notification setting controls on the page by attaching event listeners.
  */
 const initializeScopedNotify = () => {
@@ -139,6 +199,55 @@ const initializeScopedNotify = () => {
 			const { scope, blogId, postId } = event.target.dataset;
 			const value = event.target.checked ? "activate-notifications" : "deactivate-notifications";
 			sendScopedNotifyRequest({ scope, blogId, postId, value }, false, event.currentTarget);
+		});
+	});
+
+	// Listener for ntfy.sh topic inputs
+	const ntfyTopicInputs = document.querySelectorAll('.js-scoped-notify-ntfy-topic');
+	ntfyTopicInputs.forEach((input) => {
+		let saveTimeout;
+		input.addEventListener('input', (event) => {
+			const blogId = event.target.dataset.blogId;
+			const ntfyTopic = event.target.value;
+			const container = event.target.closest('.scoped-notify-options--ntfy') || event.target.closest('div');
+			const enabledToggle = container?.querySelector('.js-scoped-notify-ntfy-enabled');
+			const statusElement = container?.querySelector('.js-scoped-notify-ntfy-status');
+			const enabled = enabledToggle ? enabledToggle.checked : true;
+
+			// Debounce the save operation
+			clearTimeout(saveTimeout);
+			saveTimeout = setTimeout(() => {
+				if (ntfyTopic) {
+					saveNtfyConfig(blogId, ntfyTopic, enabled, statusElement);
+				}
+			}, 1000);
+		});
+	});
+
+	// Listener for ntfy.sh enabled toggles
+	const ntfyEnabledToggles = document.querySelectorAll('.js-scoped-notify-ntfy-enabled');
+	ntfyEnabledToggles.forEach((toggle) => {
+		toggle.addEventListener('change', (event) => {
+			const blogId = event.target.dataset.blogId;
+			const enabled = event.target.checked;
+			const container = event.target.closest('.scoped-notify-options--ntfy') || event.target.closest('div');
+			const topicInput = container?.querySelector('.js-scoped-notify-ntfy-topic');
+			const statusElement = container?.querySelector('.js-scoped-notify-ntfy-status');
+			const ntfyTopic = topicInput ? topicInput.value : '';
+
+			if (ntfyTopic) {
+				saveNtfyConfig(blogId, ntfyTopic, enabled, statusElement);
+			} else if (enabled) {
+				// If trying to enable without a topic, show error
+				if (statusElement) {
+					statusElement.innerHTML = '✗ Please enter a topic name first';
+					statusElement.style.backgroundColor = '#f8d7da';
+					statusElement.style.color = '#721c24';
+					statusElement.style.display = 'block';
+				}
+				// Uncheck the toggle
+				event.target.checked = false;
+			}
 		});
 	});
 };

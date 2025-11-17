@@ -18,6 +18,8 @@ class Rest_Api {
 	const NAMESPACE = 'scoped-notify/v1';
 
 	const ROUTE_SETTINGS = '/settings';
+	const ROUTE_NTFY_CONFIG = '/ntfy-config';
+	const ROUTE_NTFY_GET = '/ntfy-config/(?P<blog_id>\d+)';
 
 	/**
 	 * register REST API routes
@@ -29,6 +31,30 @@ class Rest_Api {
 			args: array(
 				'methods'             => \WP_REST_Server::EDITABLE,
 				'callback'            => self::set_user_preferences( ... ),
+				'permission_callback' => function () {
+					return is_user_logged_in();
+				},
+			),
+		);
+
+		register_rest_route(
+			route_namespace: self::NAMESPACE,
+			route: self::ROUTE_NTFY_CONFIG,
+			args: array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => self::save_ntfy_config( ... ),
+				'permission_callback' => function () {
+					return is_user_logged_in();
+				},
+			),
+		);
+
+		register_rest_route(
+			route_namespace: self::NAMESPACE,
+			route: self::ROUTE_NTFY_GET,
+			args: array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => self::get_ntfy_config( ... ),
 				'permission_callback' => function () {
 					return is_user_logged_in();
 				},
@@ -122,6 +148,100 @@ class Rest_Api {
 	}
 
 
+
+	/**
+	 * Save ntfy.sh configuration for current user
+	 */
+	private static function save_ntfy_config( \WP_REST_Request $request ): WP_REST_Response {
+		$logger = self::logger();
+
+		try {
+			$user_id    = wp_get_current_user()->ID;
+			$blog_id    = (int) $request['blog_id'];
+			$ntfy_topic = sanitize_text_field( $request['ntfy_topic'] );
+			$enabled    = isset( $request['enabled'] ) ? (bool) $request['enabled'] : true;
+
+			// Validate topic format
+			if ( ! preg_match( '/^[a-zA-Z0-9_-]+$/', $ntfy_topic ) ) {
+				$logger->warning( 'Invalid ntfy.sh topic format: ' . $ntfy_topic );
+				return rest_ensure_response(
+					new WP_REST_Response(
+						array(
+							'status'  => 'error',
+							'message' => 'Invalid topic format. Only alphanumeric, hyphens, and underscores allowed.',
+						)
+					)
+				);
+			}
+
+			global $wpdb;
+			$ntfy_channel = new Ntfy_Channel( $wpdb );
+			$result       = $ntfy_channel->save_user_config( $user_id, $blog_id, $ntfy_topic, $enabled );
+
+			if ( $result ) {
+				return rest_ensure_response(
+					new WP_REST_Response(
+						array(
+							'status'     => 'success',
+							'ntfy_topic' => $ntfy_topic,
+							'enabled'    => $enabled,
+						)
+					)
+				);
+			} else {
+				return self::return_error();
+			}
+		} catch ( \Exception $e ) {
+			$logger->error( 'Error saving ntfy.sh config: ' . $e->getMessage() );
+			return self::return_error();
+		}
+	}
+
+	/**
+	 * Get ntfy.sh configuration for current user
+	 */
+	private static function get_ntfy_config( \WP_REST_Request $request ): WP_REST_Response {
+		$logger = self::logger();
+
+		try {
+			$user_id = wp_get_current_user()->ID;
+			$blog_id = (int) $request['blog_id'];
+
+			global $wpdb;
+			$result = $wpdb->get_row(
+				$wpdb->prepare(
+					'SELECT ntfy_topic, enabled FROM ' . SCOPED_NOTIFY_TABLE_USER_NTFY_CONFIG . ' WHERE user_id = %d AND blog_id = %d',
+					$user_id,
+					$blog_id
+				)
+			);
+
+			if ( $result ) {
+				return rest_ensure_response(
+					new WP_REST_Response(
+						array(
+							'status'     => 'success',
+							'ntfy_topic' => $result->ntfy_topic,
+							'enabled'    => (bool) $result->enabled,
+						)
+					)
+				);
+			} else {
+				return rest_ensure_response(
+					new WP_REST_Response(
+						array(
+							'status'     => 'success',
+							'ntfy_topic' => '',
+							'enabled'    => false,
+						)
+					)
+				);
+			}
+		} catch ( \Exception $e ) {
+			$logger->error( 'Error retrieving ntfy.sh config: ' . $e->getMessage() );
+			return self::return_error();
+		}
+	}
 
 	/**
 	 * return error response

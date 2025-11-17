@@ -53,7 +53,25 @@ class Notification_Ui {
 				{$d['scoped_notify_selector']}
 			",
 		);
-		array_splice( $settings_items, 1, 0, array( $sn_settings ) );
+
+		$ntfy_settings = array(
+			'id'    => 'scoped-notify-ntfy-config',
+			'class' => 'scoped-notify-options scoped-notify-options--ntfy',
+			'data'  => array(
+				'scoped_notify_icon'     => 'fa-bell',
+				'scoped_notify_headline' => esc_html__( 'ntfy.sh Notifications', 'scoped-notify' ),
+				'scoped_notify_selector' => $this->get_ntfy_config_input( $blog_id ),
+			),
+			'html'  => fn( $d ) => "
+				<a href='#'>
+					<i class='fa {$d['scoped_notify_icon']} scoped-notify-icon' aria-hidden='true'></i>
+					<span>{$d['scoped_notify_headline']}</span>
+				</a>
+				{$d['scoped_notify_selector']}
+			",
+		);
+
+		array_splice( $settings_items, 1, 0, array( $sn_settings, $ntfy_settings ) );
 		return $settings_items;
 	}
 
@@ -246,6 +264,74 @@ class Notification_Ui {
 					</label>
 				</div>
 			</label>
+		";
+	}
+
+	/**
+	 * html for ntfy.sh topic configuration
+	 * @param int $blog_id
+	 * @return string   html with ntfy config input
+	 */
+	private function get_ntfy_config_input( int $blog_id ) {
+		global $wpdb;
+		$user_id = wp_get_current_user()->ID;
+
+		// Get current ntfy config
+		$result = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT ntfy_topic, enabled FROM ' . SCOPED_NOTIFY_TABLE_USER_NTFY_CONFIG . ' WHERE user_id = %d AND blog_id = %d',
+				$user_id,
+				$blog_id
+			)
+		);
+
+		$ntfy_topic = $result ? esc_attr( $result->ntfy_topic ) : '';
+		$enabled    = $result ? (bool) $result->enabled : false;
+		$checked    = $enabled ? 'checked=checked' : '';
+
+		$input_id  = uniqid( 'scoped-notify-ntfy-topic-', true );
+		$toggle_id = uniqid( 'scoped-notify-ntfy-enabled-', true );
+
+		$label_topic   = esc_html__( 'ntfy.sh Topic', 'scoped-notify' );
+		$label_enabled = esc_html__( 'Enable ntfy.sh notifications', 'scoped-notify' );
+		$placeholder   = esc_attr__( 'my-topic-name', 'scoped-notify' );
+		$help_text     = esc_html__( 'Enter your ntfy.sh topic name (alphanumeric, hyphens, and underscores only)', 'scoped-notify' );
+
+		return "
+			<div class='p-3'>
+				<div class='mb-3'>
+					<label for='$input_id' class='font-weight-bold'>$label_topic</label>
+					<input
+						type='text'
+						id='$input_id'
+						class='js-scoped-notify-ntfy-topic'
+						data-blog-id='$blog_id'
+						value='$ntfy_topic'
+						placeholder='$placeholder'
+						pattern='[a-zA-Z0-9_-]+'
+						style='width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;'
+					/>
+					<small style='display: block; margin-top: 4px; color: #666;'>$help_text</small>
+				</div>
+				<div class='mb-3'>
+					<label class='label-wrapper' for='$toggle_id'>
+						<span>$label_enabled</span>
+						<div class='switch small success' style='margin-left: 10px;'>
+							<input
+								class='switch-input js-scoped-notify-ntfy-enabled'
+								id='$toggle_id'
+								data-blog-id='$blog_id'
+								type='checkbox'
+								$checked
+							>
+							<label class='switch-paddle' for='$toggle_id'>
+								<span class='show-for-sr'>$label_enabled</span>
+							</label>
+						</div>
+					</label>
+				</div>
+				<div class='js-scoped-notify-ntfy-status' style='display: none; padding: 8px; border-radius: 4px;'></div>
+			</div>
 		";
 	}
 }

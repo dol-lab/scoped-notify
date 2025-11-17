@@ -40,6 +40,7 @@ define( 'SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES', 'scoped_notify_settings_us
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS', 'scoped_notify_settings_blogs' );
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_TERMS', 'scoped_notify_settings_terms' );
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_post_comments' );
+define( 'SCOPED_NOTIFY_TABLE_USER_NTFY_CONFIG', 'scoped_notify_user_ntfy_config' );
 
 // This meta is used so a post can set this to "no" if no notification should be sent out when the post is written.
 define( 'SCOPED_NOTIFY_META_NOTIFY_OTHERS', 'scoped_notify_notify_others' );
@@ -124,6 +125,17 @@ function in_plugins_loaded() {
 
 	add_action( 'delete_term', array( $hooks_manager, 'hook_delete_term' ), 10, 1 );
 
+	// Register ntfy.sh channel handler
+	add_filter(
+		'scoped_notify_send_notification_channel_ntfy',
+		function ( $result, $users, $trigger_obj, $item ) use ( $wpdb ) {
+			$ntfy_channel = new Ntfy_Channel( $wpdb );
+			return $ntfy_channel->send( $users, $trigger_obj, $item );
+		},
+		10,
+		4
+	);
+
 	// Register WP-CLI command if WP_CLI is defined.
 	// Note: WP_CLI constant is defined by WP-CLI itself.
 	if ( defined( '\WP_CLI' ) && \WP_CLI ) {
@@ -205,15 +217,20 @@ function activate_plugin() {
 		$db_manager->install(); // Creates tables if they don't exist.
 
 		// --- Add Default Triggers ---
-		$default_triggers = array( 'post-post', 'comment-post' );
+		$default_triggers = array(
+			array( 'trigger_key' => 'post-post', 'channel' => 'mail' ),
+			array( 'trigger_key' => 'comment-post', 'channel' => 'mail' ),
+			array( 'trigger_key' => 'post-post', 'channel' => 'ntfy' ),
+			array( 'trigger_key' => 'comment-post', 'channel' => 'ntfy' ),
+		);
 
-		foreach ( $default_triggers as $trigger_key ) {
+		foreach ( $default_triggers as $trigger ) {
 			// Check if trigger already exists
 			$exists = $wpdb->get_var(
 				$wpdb->prepare(
 					'SELECT trigger_id FROM `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` WHERE trigger_key = %s AND channel = %s',
-					$trigger_key,
-					'mail' // Assuming default channel is 'mail'
+					$trigger['trigger_key'],
+					$trigger['channel']
 				)
 			);
 
@@ -221,20 +238,20 @@ function activate_plugin() {
 				$inserted = $wpdb->insert(
 					SCOPED_NOTIFY_TABLE_TRIGGERS,
 					array(
-						'trigger_key' => $trigger_key,
-						'channel'     => 'mail', // Default channel
+						'trigger_key' => $trigger['trigger_key'],
+						'channel'     => $trigger['channel'],
 					),
 					array( '%s', '%s' )
 				);
 
 				if ( false === $inserted ) {
-						$logger->error( "Scoped Notify Activation: Failed to insert default trigger '{$trigger_key}'." );
+						$logger->error( "Scoped Notify Activation: Failed to insert default trigger '{$trigger['trigger_key']}' for channel '{$trigger['channel']}'." );
 						// Optionally set a transient error here too?
 				} else {
-					$logger->info( "Scoped Notify Activation: Default trigger '{$trigger_key}' inserted." );
+					$logger->info( "Scoped Notify Activation: Default trigger '{$trigger['trigger_key']}' for channel '{$trigger['channel']}' inserted." );
 				}
 			} else {
-				$logger->info( "Scoped Notify Activation: Default trigger '{$trigger_key}' already exists." );
+				$logger->info( "Scoped Notify Activation: Default trigger '{$trigger['trigger_key']}' for channel '{$trigger['channel']}' already exists." );
 			}
 		}
 

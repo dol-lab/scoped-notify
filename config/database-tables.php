@@ -166,4 +166,25 @@ return array(
             FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
+	array(
+		/**
+		 * Stores ntfy.sh configuration for users per blog.
+		 * Holds the ntfy.sh topic that users subscribe to for receiving notifications.
+		 */
+		'name'    => 'scoped_notify_user_ntfy_config',
+		'columns' => array(
+			'user_id'    => 'bigint(20) NOT NULL',
+			'blog_id'    => 'bigint(20) NOT NULL',
+			'ntfy_topic' => 'varchar(255) NOT NULL',
+			'enabled'    => 'tinyint(1) NOT NULL DEFAULT 1',
+			'created_at' => 'datetime NOT NULL DEFAULT CURRENT_TIMESTAMP',
+			'updated_at' => 'datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+		),
+		'create'  => 'CREATE TABLE {name} (
+            {columns_create},
+            PRIMARY KEY (`user_id`, `blog_id`),
+            KEY `user_id` (`user_id`),
+            KEY `blog_id` (`blog_id`)
+        )',
+	),
 );
