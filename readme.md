@@ -21,6 +21,7 @@ Check [usecases.md](usecases.md)
 # this needs to run in a container where mysqladmin is installed. this sets up a complete wordpress.
 bash ./tests/bin/install-wp-tests.sh scoped_notify_test root devpw 127.0.0.1 latest
 bash ./tests/bin/run-query.sh "show tables"
+composer install
 composer test
 # run a single test
 composer run test -- --filter Test_Notification_Queue
