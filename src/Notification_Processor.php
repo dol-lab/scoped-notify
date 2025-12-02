@@ -412,8 +412,12 @@ class Notification_Processor {
 	}
 
 	private function get_author_email( $post_or_comment, $type ) {
+		$email = '';
 		if ( 'post' === $type ) {
-			$email = get_userdata( $post_or_comment->post_author )->user_email;
+			$user = get_userdata( $post_or_comment->post_author );
+			if ( $user ) {
+				$email = $user->user_email;
+			}
 		} elseif ( 'comment' === $type ) {
 			$email = $post_or_comment->comment_author_email;
 		}
@@ -482,7 +486,20 @@ class Notification_Processor {
 				$body = $this->format_mail_message( $post_or_comment_obj, $n_item );
 			}
 
-			$email_data = apply_filters( 'scoped_notify_prepare_email_data', array(), $post_or_comment_obj, $n_item->object_type );
+			$default_email_data = array();
+			if ( 'post' === $n_item->object_type && $post_or_comment_obj instanceof \WP_Post ) {
+				$default_email_data['post_title']         = $post_or_comment_obj->post_title;
+				$default_email_data['post_id']            = $post_or_comment_obj->ID;
+				$author_user                              = \get_userdata( $post_or_comment_obj->post_author );
+				$default_email_data['author_displayname'] = $author_user ? $author_user->display_name : \__( 'Unknown', 'scoped-notify' );
+			} elseif ( 'comment' === $n_item->object_type && $post_or_comment_obj instanceof \WP_Comment ) {
+				$related_post                             = \get_post( $post_or_comment_obj->comment_post_ID );
+				$default_email_data['post_title']         = $related_post ? $related_post->post_title : \__( 'Unknown Post', 'scoped-notify' );
+				$default_email_data['post_id']            = $post_or_comment_obj->comment_post_ID;
+				$default_email_data['author_displayname'] = $post_or_comment_obj->comment_author;
+			}
+
+			$email_data = apply_filters( 'scoped_notify_prepare_email_data', $default_email_data, $post_or_comment_obj, $n_item->object_type );
 
 			$author_email = $this->get_author_email( $post_or_comment_obj, $n_item->object_type );
 
