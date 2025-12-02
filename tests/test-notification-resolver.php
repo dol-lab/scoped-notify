@@ -60,7 +60,7 @@ class Test_Notification_Resolver extends WP_UnitTestCase {
 
 		global $wpdb;
 		$wpdb->insert(
-			'scoped_notify_settings_user_profile',
+			SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES,
 			array(
 				'user_id'    => 3,
 				'trigger_id' => 1,
@@ -91,7 +91,7 @@ class Test_Notification_Resolver extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Test mentions: mentioned user is always added.
+	 * Test mentions: a mentioned user is always added.
 	 */
 	public function test_mentions_override() {
 		$post_id = $this->factory()->post->create( array( 'post_author' => 1 ) );
@@ -103,7 +103,7 @@ class Test_Notification_Resolver extends WP_UnitTestCase {
 
 		global $wpdb;
 		$wpdb->insert(
-			'scoped_notify_settings_user_profile',
+			SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES,
 			array(
 				'user_id'    => 3,
 				'trigger_id' => 1,

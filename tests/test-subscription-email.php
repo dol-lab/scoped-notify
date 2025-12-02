@@ -38,12 +38,13 @@ class Scoped_Notify_Subscription_Email_Test extends WP_UnitTestCase {
 		$this->assertNotNull( $post );
 
 		// Build a fake notification item object similar to what the processor expects.
-		$item              = new stdClass();
-		$item->blog_id     = get_current_blog_id();
-		$item->object_id   = $post_id;
-		$item->object_type = 'post';
-		$item->trigger_id  = 1; // assuming 1 is the ID for "new post" trigger.
-		$item->reason      = 'new_post';
+		$item = new \Scoped_Notify\Notification_Item(
+			get_current_blog_id(),
+			$post_id,
+			'post',
+			1,
+			'new_post'
+		);
 
 		// Prepare users array (WP_User objects)
 		$users = array( get_userdata( $subscriber_id ) );
