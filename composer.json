@@ -9,6 +9,10 @@
 			"url": "https://github.com/dol-lab/custom-table-manager"
 		}
 	],
+	"support": {
+		"source" : "https://github.com/dol-lab/scoped-notify",
+		"issues" : "https://github.com/dol-lab/scoped-notify/issues"
+	},
 	"require": {
 		"dol-lab/custom-table-manager": "1.*",
 		"php": ">=8.1",
