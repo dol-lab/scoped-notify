@@ -411,10 +411,38 @@ class Notification_Processor {
 		$user_chunks = array_chunk( $users, $chunk_size );
 
 		foreach ( $user_chunks as $user_chunk ) {
-			$sent = apply_filters( 'scoped_notify_third_party_send_mail_notification', false, $user_chunk, $trigger_obj, $item );
+			$sent = false;
+
+			try {
+				$sent = apply_filters( 'scoped_notify_third_party_send_mail_notification', false, $user_chunk, $trigger_obj, $item );
+			} catch ( \Throwable $e ) {
+				$logger->error(
+					'Third-party mail notification hook threw an exception.',
+					array(
+						'exception' => $e,
+						'user_ids'  => array_map( fn( $user ) => (int) $user->ID, $user_chunk ),
+						'item'      => $item->format(),
+					)
+				);
+				$sent = false;
+			}
+
 			if ( ! $sent ) {
 				$user_emails = array_map( fn( $user ) => $user->user_email, $user_chunk );
-				$sent        = $this->send_mail_notification( $user_emails, $trigger_obj, $item );
+
+				try {
+					$sent = $this->send_mail_notification( $user_emails, $trigger_obj, $item );
+				} catch ( \Throwable $e ) {
+					$logger->error(
+						'send_mail_notification threw an exception.',
+						array(
+							'exception' => $e,
+							'user_ids'  => array_map( fn( $user ) => (int) $user->ID, $user_chunk ),
+							'item'      => $item->format(),
+						)
+					);
+					$sent = false;
+				}
 			}
 
 			if ( $sent ) {
