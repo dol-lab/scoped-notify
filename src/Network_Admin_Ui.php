@@ -24,6 +24,7 @@ class Network_Admin_Ui {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'admin_init', array( $this, 'process_queue_action' ) );
 		add_action( 'admin_init', array( $this, 'reset_stuck_items_action' ) );
+		add_action( 'admin_init', array( $this, 'retry_failed_action' ) );
 		add_action( 'admin_init', array( $this, 'save_settings_action' ) );
 	}
 
@@ -48,6 +49,34 @@ class Network_Admin_Ui {
 					'network_admin_notices',
 					function () use ( $e ) {
 						$msg = sprintf( esc_html__( 'Error processing queue: %s', 'scoped-notify' ), $e->getMessage() );
+						echo "<div class='notice notice-error is-dismissible'><p>$msg</p></div>";
+					}
+				);
+			}
+		}
+	}
+
+	/**
+	 * Handles the retry failed items action.
+	 */
+	public function retry_failed_action() {
+		if ( isset( $_POST['scoped_notify_retry_failed'] ) && check_admin_referer( 'scoped_notify_retry_failed_action', 'scoped_notify_nonce_failed' ) ) {
+			global $wpdb;
+			$processor = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
+			try {
+				$count = $processor->move_failed_to_pending();
+				add_action(
+					'network_admin_notices',
+					function () use ( $count ) {
+						$msg = sprintf( esc_html__( 'Reset %d failed notifications to pending.', 'scoped-notify' ), $count );
+						echo "<div class='notice notice-success is-dismissible'><p>$msg</p></div>";
+					}
+				);
+			} catch ( \Exception $e ) {
+				add_action(
+					'network_admin_notices',
+					function () use ( $e ) {
+						$msg = sprintf( esc_html__( 'Error resetting failed items: %s', 'scoped-notify' ), $e->getMessage() );
 						echo "<div class='notice notice-error is-dismissible'><p>$msg</p></div>";
 					}
 				);
@@ -156,9 +185,54 @@ class Network_Admin_Ui {
 			SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS => __( 'Stores user notification preferences specifically for comments on a particular post.', 'scoped-notify' ),
 		);
 
-		$title       = esc_html__( 'Scoped Notify Tables Overview', 'scoped-notify' );
-		$btn_process = esc_attr__( 'Process Pending Now', 'scoped-notify' );
-		$btn_reset   = esc_attr__( 'Reset Stuck Items (> 30m)', 'scoped-notify' );
+		$title = esc_html__( 'Scoped Notify Tables Overview', 'scoped-notify' );
+
+		// Calculate counts for action buttons
+		$queue_table = SCOPED_NOTIFY_TABLE_QUEUE;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$queue_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $queue_table ) ) === $queue_table;
+
+		$pending_count = 0;
+		$failed_count  = 0;
+		$stuck_count   = 0;
+
+		if ( $queue_exists ) {
+			$now_utc = gmdate( 'Y-m-d H:i:s' );
+
+			// Pending
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$pending_count = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM `$queue_table` WHERE status = %s AND (scheduled_send_time IS NULL OR scheduled_send_time <= %s)",
+					'pending',
+					$now_utc
+				)
+			);
+
+			// Failed
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$failed_count = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM `$queue_table` WHERE status = %s",
+					'failed'
+				)
+			);
+
+			// Stuck
+			$stuck_cutoff = gmdate( 'Y-m-d H:i:s', time() - 1800 );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$stuck_count = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM `$queue_table` WHERE status = %s AND COALESCE(scheduled_send_time, created_at) <= %s",
+					'processing',
+					$stuck_cutoff
+				)
+			);
+		}
+
+		$btn_process = sprintf( esc_attr__( 'Process Pending Now (%d)', 'scoped-notify' ), $pending_count );
+		$btn_reset   = sprintf( esc_attr__( 'Reset Stuck Items [>30m] (%d)', 'scoped-notify' ), $stuck_count );
+		$btn_retry   = sprintf( esc_attr__( 'Move Failed to Pending (%d)', 'scoped-notify' ), $failed_count );
 		$desc        = esc_html__( 'Click on a table name to expand and see more details.', 'scoped-notify' );
 
 		echo "<div class='wrap'><h1>$title</h1>";
@@ -198,46 +272,12 @@ class Network_Admin_Ui {
 		wp_nonce_field( 'scoped_notify_process_queue_action', 'scoped_notify_nonce' );
 		echo "<input type='submit' name='scoped_notify_process_queue' class='button button-primary' value='$btn_process'></form>
 			<form method='post' action=''>";
+		wp_nonce_field( 'scoped_notify_retry_failed_action', 'scoped_notify_nonce_failed' );
+		echo "<input type='submit' name='scoped_notify_retry_failed' class='button button-secondary' value='$btn_retry'></form>
+			<form method='post' action=''>";
 		wp_nonce_field( 'scoped_notify_reset_stuck_action', 'scoped_notify_nonce_stuck' );
 		echo "<input type='submit' name='scoped_notify_reset_stuck' class='button button-secondary' value='$btn_reset'></form>
 		</div>";
-
-		// Settings Section.
-		$chunk_size   = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 400 );
-		$lbl_settings = esc_html__( 'Global Settings', 'scoped-notify' );
-		$lbl_chunk    = esc_html__( 'Mail Chunk Size', 'scoped-notify' );
-		$desc_chunk   = esc_html__( 'Number of recipients per email (BCC).', 'scoped-notify' );
-		$btn_save     = esc_attr__( 'Save Settings', 'scoped-notify' );
-
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		printf(
-			'<div class="card" style="max-width: 100%%; margin-bottom: 20px;">
-			<h2 class="title">%s</h2>
-			<form method="post" action="">
-				<table class="form-table" role="presentation">
-					<tbody>
-						<tr>
-							<th scope="row"><label for="scoped_notify_mail_chunk_size">%s</label></th>
-							<td>
-								<input name="scoped_notify_mail_chunk_size" type="number" step="1" min="1" id="scoped_notify_mail_chunk_size" value="%d" class="regular-text">
-								<p class="description">%s</p>
-							</td>
-						</tr>
-					</tbody>
-				</table>',
-			esc_html( $lbl_settings ),
-			esc_html( $lbl_chunk ),
-			(int) $chunk_size,
-			esc_html( $desc_chunk )
-		);
-		wp_nonce_field( 'scoped_notify_save_settings_action', 'scoped_notify_settings_nonce' );
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		printf(
-			'<p class="submit"><input type="submit" name="scoped_notify_save_settings" id="submit" class="button button-primary" value="%s"></p>
-			</form>
-		</div>',
-			esc_attr( $btn_save )
-		);
 
 		echo "<p>$desc</p>";
 
@@ -522,5 +562,42 @@ class Network_Admin_Ui {
 			echo '</div></details>';
 		}
 		echo '</div>';
+
+		// Settings Section.
+		$chunk_size   = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 400 );
+		$lbl_settings = esc_html__( 'Global Settings', 'scoped-notify' );
+		$lbl_chunk    = esc_html__( 'Mail Chunk Size', 'scoped-notify' );
+		$desc_chunk   = esc_html__( 'Number of recipients per email (BCC).', 'scoped-notify' );
+		$btn_save     = esc_attr__( 'Save Settings', 'scoped-notify' );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		printf(
+			'<div class="card" style="max-width: 100%%; margin-bottom: 20px;">
+			<h2 class="title">%s</h2>
+			<form method="post" action="">
+				<table class="form-table" role="presentation">
+					<tbody>
+						<tr>
+							<th scope="row"><label for="scoped_notify_mail_chunk_size">%s</label></th>
+							<td>
+								<input name="scoped_notify_mail_chunk_size" type="number" step="1" min="1" id="scoped_notify_mail_chunk_size" value="%d" class="regular-text">
+								<p class="description">%s</p>
+							</td>
+						</tr>
+					</tbody>
+				</table>',
+			esc_html( $lbl_settings ),
+			esc_html( $lbl_chunk ),
+			(int) $chunk_size,
+			esc_html( $desc_chunk )
+		);
+		wp_nonce_field( 'scoped_notify_save_settings_action', 'scoped_notify_settings_nonce' );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		printf(
+			'<p class="submit"><input type="submit" name="scoped_notify_save_settings" id="submit" class="button button-primary" value="%s"></p>
+			</form>
+		</div>',
+			esc_attr( $btn_save )
+		);
 	}
 }
