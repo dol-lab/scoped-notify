@@ -8,52 +8,44 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2025-06-13T13:03:58+00:00\n"
-"PO-Revision-Date: 2025-12-08 15:41+0000\n"
+"PO-Revision-Date: 2025-12-08 15:34+0000\n"
 "Language: de_DE\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Loco https://localise.biz/\n"
 "X-Loco-Version: 2.8.0; wp-6.8.1; php-8.1.32\n"
 
 #. Description of the plugin
-#, fuzzy
 msgid ""
 "A flexible notification system for multisite WordPress installations, "
 "allowing users to customize notifications based on their preferences and "
 "site context."
 msgstr ""
-"Ein flexibles Benachrichtigungssystem für Multisite-WordPress-Installationen,"
-" mit dem die Nutzer/innen die Benachrichtigungen an ihre Vorlieben und den "
-"Kontext der Website anpassen können."
 
 #: src/Network_Admin_Ui.php:331
 msgid "All Statuses"
-msgstr "Alle Stati"
+msgstr ""
 
 #: src/Notification_Resolver.php:494
 msgid "Blog"
-msgstr "Blog"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:347
-#, fuzzy
 msgid "Clear"
 msgstr ""
 
 #: src/Network_Admin_Ui.php:141
 msgid "Click on a table name to expand and see more details."
 msgstr ""
-"Klicke auf einen Tabellennamen, um ihn zu erweitern und mehr Details zu "
-"sehen."
 
 #: src/Network_Admin_Ui.php:211
 msgid "Created At"
-msgstr "Erstellt am"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:209
 msgid "Data Size"
-msgstr "Daten Größe"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:129
-#, fuzzy
 msgid "Defines triggers for notifications and the channel used to send them."
 msgstr ""
 
@@ -64,20 +56,20 @@ msgstr "DolLab & V3"
 #: src/Network_Admin_Ui.php:49
 #, php-format
 msgid "Error processing queue: %s"
-msgstr "Fehler bei der Verarbeitung der Warteschlange: %s"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:77
 #, php-format
 msgid "Error resetting stuck items: %s"
-msgstr "Fehler beim Zurücksetzen festsitzender Einträge: %s"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:340
 msgid "Filter"
-msgstr "Filter"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:383
 msgid "First"
-msgstr "Erste"
+msgstr ""
 
 #: src/Notification_Preference.php:22
 msgid "For Posts"
@@ -89,49 +81,47 @@ msgstr "Für Posts und Kommentare"
 
 #: src/Network_Admin_Ui.php:345
 msgid "Found %d rows."
-msgstr "%d Zeilen gefunden."
+msgstr ""
 
 #: src/Network_Admin_Ui.php:130
-#, fuzzy
 msgid ""
 "Holds notifications waiting to be processed and sent. Includes details like "
 "recipient, context, trigger, reason, and schedule."
 msgstr ""
-"Enthält Benachrichtigungen, die darauf warten, bearbeitet und gesendet zu "
-"werden. Enthält Details wie Empfänger, Kontext, Auslöser, Grund und Zeitplan."
 
 #: src/Network_Admin_Ui.php:210
 msgid "Index Size"
-msgstr "Index Größe"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:386
 msgid "Last"
-msgstr "Letzte"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:212
 msgid "Last Updated"
-msgstr "Zuletzt aktualisiert"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:168
 msgid "Missing"
-msgstr "Fehlt"
+msgstr ""
 
 #: src/Notification_Ui.php:45
+#, fuzzy
 #| msgid "Mail Notifications"
 msgid "My Mail Notifications"
-msgstr "Meine Mail-Benachrichtigungen"
+msgstr "E-Mail-Benachrichtigungen"
 
 #: src/Network_Admin_Ui.php:250
 msgid "N/A"
-msgstr "N/A"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:385
 msgid "Next"
-msgstr "Nächste"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:430
 msgid "No data found."
-msgstr "Keine Daten gefunden."
+msgstr ""
 
 #: src/Notification_Preference.php:24
 msgid "No Notifications"
@@ -160,12 +150,12 @@ msgstr "Benachrichtige mich"
 
 #: src/Network_Admin_Ui.php:249
 msgid "Oldest Pending Item"
-msgstr "Älterster ausstehender Eintrag (pending)"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:393
 #, php-format
 msgid "Page %1$d of %2$d"
-msgstr "Seite %1$d von %2$d"
+msgstr ""
 
 #: src/Notification_Resolver.php:524
 #, fuzzy
@@ -175,29 +165,27 @@ msgstr "ein Beitrag"
 
 #: src/Network_Admin_Ui.php:384
 msgid "Prev"
-msgstr "Prev"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:139
 msgid "Process Pending Now"
-msgstr "Verarbeite Ausstehende (pending) Benachrichtigungen"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:41
 msgid "Processed %d notifications."
-msgstr "%d Benachrichtigungen verarbeitet."
+msgstr ""
 
 #: src/Network_Admin_Ui.php:226
 msgid "Queue Specific Stats"
-msgstr "Warteschlangenspezifische Statistiken"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:69
 msgid "Reset %d stuck notifications to pending."
 msgstr ""
-"Setze %d \"festsitzende\" Benachrichtigungen auf \"ausstehend\" (pending) "
-"zurück."
 
 #: src/Network_Admin_Ui.php:140
 msgid "Reset Stuck Items (> 30m)"
-msgstr "Setzte hängengebliebene Einträge zurück (> 30m)"
+msgstr ""
 
 #. Name of the plugin
 #: src/Network_Admin_Ui.php:102 src/Network_Admin_Ui.php:103
@@ -218,62 +206,51 @@ msgstr ""
 
 #: src/Network_Admin_Ui.php:138
 msgid "Scoped Notify Tables Overview"
-msgstr "Scoped Notify Übersicht"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:339
 msgid "Search..."
-msgstr "Suche..."
+msgstr ""
 
 #: src/Network_Admin_Ui.php:203
 msgid "Statistic"
-msgstr "Statistik"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:131
 msgid ""
 "Stores the user's preferred notification delivery schedule (e.g., immediate, "
 "daily, weekly) per blog and channel."
 msgstr ""
-"Speichert den vom Nutzer bevorzugten Zeitplan für die Zustellung von "
-"Benachrichtigungen (z. B. sofort, täglich, wöchentlich) pro Blog und Kanal."
 
 #: src/Network_Admin_Ui.php:133
 msgid "Stores user notification preferences specific to individual blogs."
 msgstr ""
-"Speichert die Benachrichtigungspräferenzen der Nutzer/innen für einzelne "
-"Blogs."
 
 #: src/Network_Admin_Ui.php:134
 msgid ""
 "Stores user notification preferences specific to taxonomy terms within a "
 "blog."
 msgstr ""
-"Speichert die Benachrichtigungspräferenzen der Nutzer/innen für "
-"Taxonomiebegriffe in einem Blog."
 
 #: src/Network_Admin_Ui.php:135
-#, fuzzy
 msgid ""
 "Stores user notification preferences specifically for comments on a "
 "particular post."
 msgstr ""
-"Speichert die Benachrichtigungspräferenzen der Nutzer für Kommentare zu "
-"einem bestimmten Beitrag."
 
 #: src/Network_Admin_Ui.php:132
 msgid ""
 "Stores user notification preferences that apply network-wide (across all "
 "blogs)."
 msgstr ""
-"Speichert die Benachrichtigungspräferenzen der Nutzer/innen, die "
-"netzwerkweit (für alle Blogs) gelten."
 
 #: src/Network_Admin_Ui.php:322
 msgid "Table Data"
-msgstr "Tabelle Daten"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:177
 msgid "Table Missing"
-msgstr "Tabelle Fehlt"
+msgstr ""
 
 #: src/Notification_Resolver.php:510
 msgid "Term"
@@ -281,8 +258,8 @@ msgstr "Kategorie"
 
 #: src/Network_Admin_Ui.php:208
 msgid "Total Rows"
-msgstr "Zeilen gesamt"
+msgstr ""
 
 #: src/Network_Admin_Ui.php:204
 msgid "Value"
-msgstr "Wert"
+msgstr ""
