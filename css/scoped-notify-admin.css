@@ -19,7 +19,6 @@ details.scoped-notify-table-details>summary {
 
 details.scoped-notify-table-details[open]>summary {
 	border-bottom: 1px solid #c3c4c7;
-	/* Ensure border remains when open */
 	margin-bottom: 0;
 }
 
@@ -43,56 +42,89 @@ details.scoped-notify-table-details>summary:hover {
 	text-align: left;
 }
 
-/* Specific styling for the actual data table */
-.scoped-notify-data-table-container table th,
-.scoped-notify-data-table-container table td {
-	padding: 6px 8px;
-	/* Slightly reduced padding for compactness */
-	white-space: nowrap;
-	/* Prevent text wrapping in data cells */
-}
-
 .scoped-notify-table-content th {
 	background-color: #f7f7f7;
 }
 
-/* Common styles for truncated cells and headers with hover expansion */
-.scoped-notify-cell,
-.scoped-notify-header {
-	max-width: 200px;
+/* --- Data Table Styling with Hover Expansion --- */
+
+.scoped-notify-data-table-container table {
+	table-layout: fixed;
+	/* Helps maintain structure when cells overlap */
+}
+
+/* 1. Remove padding from the cell so the wrapper aligns perfectly.
+   2. Set a fixed height or min-height to prevent row collapse when the wrapper goes absolute.
+   3. Relative positioning to anchor the wrapper.
+*/
+.scoped-notify-data-table-container table th,
+.scoped-notify-data-table-container table td {
+	position: relative;
+	padding: 0 !important;
+	height: 36px;
+	/* Adjust based on your font-size/line-height preference */
+	vertical-align: top;
+	border: 1px solid #e7e7e7;
+}
+
+/* The Wrapper:
+   - Default: Single line, truncated, hidden overflow.
+   - Hover: Absolute, expands over other cells, wraps text.
+*/
+.scoped-notify-wrapper {
+	position: relative;
+	padding: 8px 10px;
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+
+	/* Truncation styles */
+	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	white-space: nowrap;
-	position: relative;
+
+	background-color: transparent;
+	z-index: 1;
+	cursor: default;
 }
 
-.scoped-notify-cell:hover,
-.scoped-notify-header:hover {
-	overflow: visible;
-	z-index: 1000;
-}
-
-.scoped-notify-cell[data-full-text]:hover,
-.scoped-notify-header[data-full-text]:hover {
-	overflow: visible;
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-	white-space: nowrap;
-	background-color: white;
-	display: inline-block;
-	padding: 5px 7px;
-	min-width: 100%;
-	box-sizing: border-box;
-}
-
-.scoped-notify-header:hover::after {
+/* Specific styling for header wrapper background match */
+th .scoped-notify-wrapper {
 	background-color: #f7f7f7;
 	font-weight: bold;
 }
 
-.scoped-notify-cell:hover::after {
+/* Hover State */
+td:hover .scoped-notify-wrapper,
+th:hover .scoped-notify-wrapper {
+	position: absolute;
+	top: -1px;
+	/* Overlap border slightly */
+	left: -1px;
+	width: auto;
+	height: auto;
+	min-width: calc(100% + 2px);
+	max-width: 600px;
+	/* Constraint width */
+
+	/* Expansion styles */
+	white-space: normal;
+	word-wrap: break-word;
+	overflow: visible;
+
 	background-color: #fff;
+	border: 1px solid #999;
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+	z-index: 9999;
+	box-sizing: border-box;
 }
 
+/* Maintain header background on hover */
+th:hover .scoped-notify-wrapper {
+	background-color: #f7f7f7;
+}
+
+/* Pagination Styles */
 .scoped-notify-pagination {
 	margin-top: 10px;
 	text-align: right;

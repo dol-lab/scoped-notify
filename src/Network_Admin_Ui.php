@@ -566,7 +566,8 @@ class Network_Admin_Ui {
 					<table class='widefat fixed striped'>
 					<thead><tr>";
 				foreach ( array_keys( $rows[0] ) as $header ) {
-					echo '<th class="scoped-notify-header" data-full-text="' . esc_attr( $header ) . '">' . esc_html( $header ) . '</th>';
+					// WRAPPED HEADER
+					echo '<th class="scoped-notify-header"><div class="scoped-notify-wrapper">' . esc_html( $header ) . '</div></th>';
 				}
 				echo '</tr></thead><tbody>';
 
@@ -578,10 +579,12 @@ class Network_Admin_Ui {
 						$row_id = esc_attr( "$table_name-row-" . $row['queue_id'] );
 					}
 
-					echo "<tr id='$row_id'>";
+					echo "<tr id='$row_id'>"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					foreach ( $row as $val ) {
-						$maybe_attr = empty( $val ) ? '' : "data-full-text='" . esc_attr( (string) $val ) . "'";
-						echo "<td class='scoped-notify-cell' $maybe_attr>" . esc_html( (string) $val ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						// WRAPPED CELL
+						$maybe_wrapper = empty( $val ) ? ''
+							: "<div class='scoped-notify-wrapper'>" . esc_html( (string) $val ) . '</div>';
+						echo "<td class='scoped-notify-cell'>$maybe_wrapper</td>"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					}
 					echo '</tr>';
 				}
