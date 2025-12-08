@@ -57,6 +57,15 @@ class Notification_Processor {
 	public function process_queue( int $limit = 10 ): int {
 		$logger = self::logger();
 
+		$start_time         = $this->get_current_time();
+		$max_execution_time = $this->get_max_execution_time();
+		// If max_execution_time is 0 (unlimited) or very large, set a reasonable default limit for this batch
+		if ( 0 === $max_execution_time || $max_execution_time > 300 ) {
+			$max_execution_time = 300;
+		}
+		// Stop processing if we've used 80% of the time limit
+		$time_limit = $max_execution_time * 0.8;
+
 		$processed_count = 0;
 		$now_utc         = gmdate( 'Y-m-d H:i:s' ); // Get current UTC time in MySQL format
 
@@ -88,57 +97,142 @@ class Notification_Processor {
 		foreach ( $items as $row ) {
 			$item = Notification_Item::from_db_row( $row );
 
-			// now fetch users
-			$user_list = $this->wpdb->get_results(
-				$this->wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-					"SELECT user_id
-					FROM {$this->notifications_table_name}
-					WHERE
-						blog_id = %d
-						AND object_id = %d
-						AND object_type = %s
-						AND trigger_id = %d
-						AND status = %s
-					",
-					$item->blog_id,
-					$item->object_id,
-					$item->object_type,
-					$item->trigger_id,
-					'pending'
-				)
-			);
-
-			$logger->debug( "Processing notification queue item {$item->format()}" );
-
-			// Mark as processing to reduce race conditions if run concurrently
-			$updated = $this->update_notification_status( $item, null, 'processing', false ); // Mark as processing, don't update sent_at yet
-			if ( ! $updated ) {
-				$logger->warning( "Failed to mark notification queue item {$item->format()} as 'processing'. Skipping." );
-							continue;
+			// Check for timeout before processing the next item
+			if ( ( $this->get_current_time() - $start_time ) > $time_limit ) {
+				$logger->info( 'Time limit reached. Stopping queue processing.', array( 'processed_count' => $processed_count ) );
+				break;
 			}
 
-			$user_ids = array_column( $user_list, 'user_id' );
-			$users    = get_users(
-				array(
-					'include' => $user_ids,
-					'fields'  => array( 'ID', 'user_email', 'display_name' ), // only what you need
-					'blog_id' => 0, // get users across all blogs
-				)
-			);
+			// Generate a unique lock key for this item
+			$lock_key = 'sn_item_' . md5( "{$item->blog_id}_{$item->object_id}_{$item->object_type}_{$item->trigger_id}" );
 
-			list($users_succeeded, $users_failed) = $this->process_single_notification( $item, $users ); // Process the single notification
-
-			// Update status based on processing result
-			foreach ( $users_succeeded as $user ) {
-				$this->update_notification_status( $item, absint( $user->id ), 'sent', true );
-				++$processed_count;
-			}
-			foreach ( $users_failed as $user ) {
-				$this->update_notification_status( $item, absint( $user->id ), 'failed', false );
+			// Try to acquire lock
+			if ( ! $this->acquire_lock( $lock_key ) ) {
+				$logger->debug( "Could not acquire lock for {$item->format()}. Skipping." );
+				continue;
 			}
 
-			if ( count( $users_failed ) > 0 ) {
-				$logger->error( 'sending of notifications failed for some users', array( 'users_failed' => $users_failed ) );
+			try {
+				$logger->debug( "Acquired lock for {$item->format()}. Processing..." );
+
+				// Chunk users to avoid memory issues and allow timeout checks
+				$chunk_size = absint( \get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, self::CHUNK_SIZE_FALLBACK ) );
+				if ( $chunk_size < 1 ) {
+					$chunk_size = self::CHUNK_SIZE_FALLBACK;
+				}
+
+				// Process users in batches until no more pending users are found or timeout
+				while ( true ) {
+					// Check for timeout before processing chunk
+					if ( ( $this->get_current_time() - $start_time ) > $time_limit ) {
+						$logger->info( 'Time limit reached during user processing. Stopping.', array( 'processed_count' => $processed_count ) );
+						break; // Break the while loop, finally block will release lock
+					}
+
+					// Fetch next batch of pending users
+					// We fetch only up to chunk_size
+					$user_list = $this->wpdb->get_results(
+						$this->wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+							"SELECT user_id
+							FROM {$this->notifications_table_name}
+							WHERE
+								blog_id = %d
+								AND object_id = %d
+								AND object_type = %s
+								AND trigger_id = %d
+								AND status = %s
+							LIMIT %d
+							",
+							$item->blog_id,
+							$item->object_id,
+							$item->object_type,
+							$item->trigger_id,
+							'pending',
+							$chunk_size
+						)
+					);
+
+					if ( empty( $user_list ) ) {
+						break; // No more pending users
+					}
+
+					$chunk_user_ids = array_column( $user_list, 'user_id' );
+
+					// Mark THIS chunk as processing.
+					// This is critical: We only mark the users we are about to send to.
+					// If we crash after this, only these users are stuck.
+					$marked = $this->bulk_update_notification_status( $item, $chunk_user_ids, 'processing', false );
+					if ( ! $marked ) {
+						$logger->warning( 'Failed to mark chunk of ' . count( $chunk_user_ids ) . ' users as processing. Skipping chunk.' );
+						// If we can't mark them, we shouldn't send.
+						// To avoid infinite loop, we must break or ensure we don't pick them up again?
+						// If update failed, they are likely still pending (or DB error).
+						// If we break, we stop processing this item. Safer.
+						break;
+					}
+
+					$users = get_users(
+						array(
+							'include' => $chunk_user_ids,
+							'fields'  => array( 'ID', 'user_email', 'display_name' ), // only what you need
+							'blog_id' => 0, // get users across all blogs
+						)
+					);
+					$logger->debug(
+						'Fetched users from get_users',
+						array(
+							'fetched_users_ids'       => array_column( $users, 'ID' ),
+							'original_chunk_user_ids' => $chunk_user_ids,
+						)
+					);
+
+					// Identify users that were in the chunk but not found in the DB (deleted users)
+					$fetched_user_ids = array_map( fn( $u ) => (int) $u->ID, $users );
+					$missing_user_ids = array_diff( $chunk_user_ids, $fetched_user_ids );
+					$logger->debug( 'Calculated missing user IDs', array( 'missing_user_ids' => $missing_user_ids ) );
+
+					if ( ! empty( $missing_user_ids ) ) {
+						$updated_rows = $this->bulk_update_notification_status( $item, $missing_user_ids, 'orphaned', false );
+						$logger->info(
+							'Marked users as orphaned (source user deleted)',
+							array(
+								'user_ids'      => $missing_user_ids,
+								'rows_affected' => $updated_rows,
+							)
+						);
+					}
+
+					// Only continue processing with users that actually exist
+					if ( empty( $users ) ) {
+						$logger->debug( 'No valid users found in chunk after filtering missing ones. Skipping processing for this chunk.' );
+						continue;
+					}
+
+					list($users_succeeded, $users_failed, $users_orphaned) = $this->process_single_notification( $item, $users ); // Process the single notification
+
+					// Update status based on processing result
+					if ( ! empty( $users_succeeded ) ) {
+						$succeeded_ids = array_map( fn( $u ) => (int) $u->ID, $users_succeeded );
+						$this->bulk_update_notification_status( $item, $succeeded_ids, 'sent', true );
+						$processed_count += count( $users_succeeded );
+					}
+
+					if ( ! empty( $users_failed ) ) {
+						$failed_ids = array_map( fn( $u ) => (int) $u->ID, $users_failed );
+						$this->bulk_update_notification_status( $item, $failed_ids, 'failed', false );
+					}
+
+					if ( ! empty( $users_orphaned ) ) {
+						$orphaned_ids = array_map( fn( $u ) => (int) $u->ID, $users_orphaned );
+						$this->bulk_update_notification_status( $item, $orphaned_ids, 'orphaned', false );
+					}
+
+					if ( count( $users_failed ) > 0 ) {
+						$logger->error( 'sending of notifications failed for some users', array( 'users_failed' => $users_failed ) );
+					}
+				}
+			} finally {
+				$this->release_lock( $lock_key );
 			}
 
 			// Optional: Add retry logic for failed items later
@@ -147,6 +241,32 @@ class Notification_Processor {
 		$logger->info( "Finished processing batch. Successfully processed {$processed_count} notifications." );
 		return $processed_count;
 	}
+
+	/**
+	 * Acquires a named lock in MySQL.
+	 *
+	 * @param string $lock_name The name of the lock.
+	 * @param int    $timeout   Timeout in seconds.
+	 * @return bool True if lock acquired, false otherwise.
+	 */
+	private function acquire_lock( string $lock_name, int $timeout = 0 ): bool {
+		$query  = $this->wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, $timeout );
+		$result = $this->wpdb->get_var( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return '1' === (string) $result;
+	}
+
+	/**
+	 * Releases a named lock in MySQL.
+	 *
+	 * @param string $lock_name The name of the lock.
+	 * @return bool True if lock released, false otherwise.
+	 */
+	private function release_lock( string $lock_name ): bool {
+		$query  = $this->wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name );
+		$result = $this->wpdb->get_var( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return '1' === (string) $result;
+	}
+
 
 	/**
 	 * Retrieves the channel associated with a trigger ID.
@@ -177,10 +297,10 @@ class Notification_Processor {
 	 *
 	 * @param Notification_Item $item  The notification item data from the database.
 	 * @param \WP_User[]        $users Array of users to whom the notification is sent.
-	 * @return \WP_User[][] An array containing two arrays: users succeeded and users failed.
+	 * @return array An array containing three arrays: users succeeded, users failed, and users orphaned.
 	 * @throws \Exception When the triggering object is not found or channel cannot be determined.
 	 */
-	private function process_single_notification( Notification_Item $item, array $users ): array {
+	public function process_single_notification( Notification_Item $item, array $users ): array {
 		$logger = self::logger();
 
 		// Switch to the correct blog context if in multisite
@@ -192,14 +312,17 @@ class Notification_Processor {
 			$logger->debug( "Switched to blog ID {$item->blog_id} for processing notification queue item {$item->format()}" );
 		}
 
+		$users_orphaned  = array();
+		$users_succeeded = array();
+		$users_failed    = array();
+
 		try {
 			// Note: get_object handles blog switching internally
-			$object = $this->get_object( $item->object_type, (int) $item->object_id, (int) $item->blog_id );
+			$object = Notification_Item::get_related_object( $item->object_type, (int) $item->object_id, (int) $item->blog_id );
 			if ( ! $object ) {
-				// Object might have been deleted. Decide how to handle this.
-				// Option 1: Mark as failed. Option 2: Mark as 'sent'/'completed' (nothing to send).
-				// Let's mark as failed for now, as the notification context is lost.
-				throw new \Exception( "Triggering object {$item->object_type}:{$item->object_id} not found on blog {$item->blog_id}." );
+				// Object might have been deleted.
+				$logger->info( "Triggering object {$item->object_type}:{$item->object_id} not found. Marking users as orphaned." );
+				return array( array(), array(), $users );
 			}
 
 			$channel = $this->get_channel_for_trigger( (int) $item->trigger_id );
@@ -221,7 +344,7 @@ class Notification_Processor {
 			}
 
 			$logger->debug( "Sent notification item {$item->format()} via channel '{$channel}'." );
-			return array( $users_succeeded, $users_failed );
+			return array( $users_succeeded, $users_failed, $users_orphaned );
 		} catch ( \Exception $e ) {
 			$logger->error(
 				'Error processing notification queue item: ' . $e->getMessage(),
@@ -230,7 +353,7 @@ class Notification_Processor {
 					'exception' => $e,
 				)
 			);
-			return array( array(), $users ); // On failure, all users are considered failed.
+			return array( array(), $users, array() ); // On failure, all users are considered failed.
 		} finally {
 			if ( $switched_blog ) {
 				\restore_current_blog();
@@ -302,58 +425,63 @@ class Notification_Processor {
 	}
 
 
+
 	/**
-	 * Retrieves the object associated with a notification item.
-	 * Handles blog switching.
+	 * Updates the status of a notification item for multiple users efficiently.
 	 *
-	 * @param string $object_type Object type ('post', 'comment', etc.).
-	 * @param int    $object_id   Object ID.
-	 * @param int    $blog_id     Blog ID where the object resides.
-	 * @return \WP_Post|\WP_Comment|mixed|null The object, or null if not found or type unsupported.
+	 * @param Notification_Item $item           The notification item.
+	 * @param array             $user_ids       Array of user IDs to update.
+	 * @param string            $status         The new status ('processing', 'sent', 'failed').
+	 * @param bool              $update_sent_at Whether to update the sent_at timestamp.
+	 * @return int Number of rows affected.
 	 */
-	private function get_object( string $object_type, int $object_id, int $blog_id ): mixed {
+	private function bulk_update_notification_status( Notification_Item $item, array $user_ids, string $status, bool $update_sent_at ): int {
 		$logger = self::logger();
 
-		// Ensure we are on the correct blog to fetch the object
-		$original_blog_id = null;
-		$switched_blog    = false;
-		if ( \is_multisite() ) {
-			$original_blog_id = \get_current_blog_id();
-			if ( $blog_id && $blog_id !== $original_blog_id ) {
-				\switch_to_blog( $blog_id );
-				$switched_blog = true;
-			}
+		if ( empty( $user_ids ) ) {
+			return 0;
 		}
 
-		$object = null;
-		try {
-			if ( $object_type === 'post' ) {
-				$object = \get_post( $object_id );
-			} elseif ( $object_type === 'comment' ) {
-				$object = \get_comment( $object_id );
-			} else {
-				// Allow extension for other object types
-				$object = \apply_filters( 'scoped_notify_get_notification_object', null, $object_type, $object_id, $blog_id );
-			}
-		} finally {
-			// Restore blog context if switched
-			if ( $switched_blog ) {
-				\restore_current_blog();
-			}
+		$set_clauses = array();
+		$values      = array();
+
+		$set_clauses[] = 'status = %s';
+		$values[]      = $status;
+
+		if ( $update_sent_at ) {
+			$set_clauses[] = 'sent_at = %s';
+			$values[]      = \current_time( 'mysql', true ); // Use UTC time
 		}
 
-		if ( ! $object ) {
-			$logger->warning(
-				'Could not retrieve object.',
+		$user_ids_placeholder = implode( ',', array_fill( 0, count( $user_ids ), '%d' ) );
+
+		$sql  = "UPDATE {$this->notifications_table_name} SET " . implode( ', ', $set_clauses );
+		$sql .= " WHERE blog_id = %d AND object_id = %d AND object_type = %s AND trigger_id = %d AND user_id IN ($user_ids_placeholder)";
+
+		// Combine all values for prepare: SET values, WHERE values, IN values
+		$prepare_args = array_merge(
+			$values,
+			array( $item->blog_id, $item->object_id, $item->object_type, $item->trigger_id ),
+			$user_ids
+		);
+
+		$sql = $this->wpdb->prepare( $sql, $prepare_args ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$result = $this->wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( false === $result ) {
+			$logger->error(
+				"Failed to bulk update status to '{$status}' for {$item->format()}.",
 				array(
-					'object_type' => $object_type,
-					'object_id'   => $object_id,
-					'blog_id'     => $blog_id,
+					'error' => $this->wpdb->last_error,
+					'query' => $this->wpdb->last_query,
 				)
 			);
+			return 0;
 		}
+		$logger->debug( "Bulk update status to '{$status}' affected {$result} rows." );
 
-		return $object;
+		return (int) $result;
 	}
 
 	/**
@@ -409,6 +537,99 @@ class Notification_Processor {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Reverts 'processing' status back to 'pending' for a specific item.
+	 * Used when a timeout occurs.
+	 *
+	 * @param Notification_Item $item The notification item.
+	 */
+	private function revert_processing_to_pending( Notification_Item $item ): void {
+		$logger = self::logger();
+
+		$sql = "UPDATE {$this->notifications_table_name}
+				SET status = 'pending'
+				WHERE blog_id = %d
+				AND object_id = %d
+				AND object_type = %s
+				AND trigger_id = %d
+				AND status = 'processing'";
+
+		$query = $this->wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$sql,
+			$item->blog_id,
+			$item->object_id,
+			$item->object_type,
+			$item->trigger_id
+		);
+
+		$result = $this->wpdb->query( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( false === $result ) {
+			$logger->error( "Failed to revert processing users to pending for {$item->format()}" );
+		} else {
+			$logger->info( "Reverted {$result} users from processing to pending for {$item->format()}" );
+		}
+	}
+
+	/**
+	 * Resets notifications that have been stuck in specified states for too long.
+	 *
+	 * @param int   $seconds_threshold The number of seconds after which an item is considered stuck. Default 1800 (30 minutes).
+	 * @param array $statuses          The statuses to reset. Default array('processing').
+	 * @return int The number of rows affected (reset to pending or sent).
+	 */
+	public function reset_stuck_items( int $seconds_threshold = 1800, array $statuses = array( 'processing' ) ): int {
+		$logger = self::logger();
+
+		if ( empty( $statuses ) ) {
+			return 0;
+		}
+
+		// Calculate the cutoff time
+		$cutoff_time = gmdate( 'Y-m-d H:i:s', time() - $seconds_threshold );
+		$total_rows  = 0;
+
+		$placeholders = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+
+		// 1. Mark as 'sent' if sent_at exists (assume success)
+		$sql_sent = "UPDATE {$this->notifications_table_name}
+			 SET status = 'sent'
+			 WHERE status IN ($placeholders)
+			 AND sent_at IS NOT NULL
+			 AND COALESCE(scheduled_send_time, created_at) <= %s";
+
+		$args_sent   = $statuses;
+		$args_sent[] = $cutoff_time;
+
+		$query_sent = $this->wpdb->prepare( $sql_sent, $args_sent ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$res_sent   = $this->wpdb->query( $query_sent ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( false !== $res_sent && $res_sent > 0 ) {
+			$logger->info( "Marked {$res_sent} stuck items as sent (had sent_at)." );
+			$total_rows += $res_sent;
+		}
+
+		// 2. Reset to 'pending' if sent_at is NULL (retry)
+		$sql_pending = "UPDATE {$this->notifications_table_name}
+			 SET status = 'pending'
+			 WHERE status IN ($placeholders)
+			 AND sent_at IS NULL
+			 AND COALESCE(scheduled_send_time, created_at) <= %s";
+
+		$args_pending   = $statuses;
+		$args_pending[] = $cutoff_time;
+
+		$query_pending = $this->wpdb->prepare( $sql_pending, $args_pending ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$res_pending   = $this->wpdb->query( $query_pending ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( false !== $res_pending && $res_pending > 0 ) {
+			$logger->info( "Reset {$res_pending} stuck items to pending (no sent_at)." );
+			$total_rows += $res_pending;
+		}
+
+		return $total_rows;
 	}
 
 	private function get_author_email( $post_or_comment, $type ) {
@@ -769,5 +990,23 @@ class Notification_Processor {
 
 		// Allow filtering of the message body
 		return \apply_filters( 'scoped_notify_mail_message', $message, $trigger_obj, $item );
+	}
+
+	/**
+	 * Get the current time.
+	 *
+	 * @return int Current timestamp.
+	 */
+	protected function get_current_time(): int {
+		return time();
+	}
+
+	/**
+	 * Get the max execution time.
+	 *
+	 * @return int Max execution time in seconds.
+	 */
+	protected function get_max_execution_time(): int {
+		return (int) ini_get( 'max_execution_time' );
 	}
 }

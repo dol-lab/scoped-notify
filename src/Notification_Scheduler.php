@@ -43,6 +43,59 @@ class Notification_Scheduler {
 	}
 
 	/**
+	 * Retrieves the notification schedule type for multiple users on a specific blog and channel.
+	 * Handles blog switching.
+	 *
+	 * @param array  $user_ids Array of User IDs.
+	 * @param int    $blog_id  Blog ID.
+	 * @param string $channel  Notification channel.
+	 * @return array Associative array [user_id => schedule_type].
+	 */
+	public function get_users_schedules( array $user_ids, int $blog_id, string $channel ): array {
+		if ( empty( $user_ids ) ) {
+			return array();
+		}
+
+		// Ensure we are on the correct blog
+		$original_blog_id = null;
+		$switched_blog    = false;
+		if ( \is_multisite() ) {
+			$original_blog_id = \get_current_blog_id();
+			if ( $blog_id && $blog_id !== $original_blog_id ) {
+				\switch_to_blog( $blog_id );
+				$switched_blog = true;
+			}
+		}
+
+		$schedules = array();
+		try {
+			// Initialize with default
+			foreach ( $user_ids as $uid ) {
+				$schedules[ $uid ] = self::DEFAULT_SCHEDULE_TYPE;
+			}
+
+			$user_ids_placeholder = implode( ',', array_fill( 0, count( $user_ids ), '%d' ) );
+
+			$sql = 'SELECT user_id, schedule_type FROM %i
+					WHERE blog_id = %d AND channel = %s AND user_id IN (' . $user_ids_placeholder . ')';
+
+			$args = array_merge( array( SCOPED_NOTIFY_TABLE_USER_BLOG_SCHEDULES, $blog_id, $channel ), $user_ids );
+
+			$results = $this->wpdb->get_results( $this->wpdb->prepare( $sql, $args ) );
+
+			foreach ( $results as $row ) {
+				$schedules[ (int) $row->user_id ] = $row->schedule_type;
+			}
+		} finally {
+			if ( $switched_blog ) {
+				\restore_current_blog();
+			}
+		}
+
+		return $schedules;
+	}
+
+	/**
 	 * Retrieves the notification schedule type for a user on a specific blog and channel.
 	 * Handles blog switching.
 	 *

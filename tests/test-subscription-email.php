@@ -61,25 +61,22 @@ class Scoped_Notify_Subscription_Email_Test extends WP_UnitTestCase {
 
 		$processor = new \Scoped_Notify\Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
 
-		// Call the private method process_single_notification via reflection.
-		$reflection = new ReflectionClass( $processor );
-		$method     = $reflection->getMethod( 'process_single_notification' );
-		$method->setAccessible( true );
-
 		/** @var array $result [ $users_succeeded, $users_failed ] */
-		$result = $method->invoke( $processor, $item, $users );
+		$result = $processor->process_single_notification( $item, $users );
 
 		// Remove the test filter so it does not affect other tests.
 		remove_all_filters( 'scoped_notify_third_party_send_mail_notification' );
 
 		// Assertions: the subscriber should be in the succeeded list and none failed.
 		$this->assertIsArray( $result );
-		$this->assertCount( 2, $result );
+		$this->assertCount( 3, $result );
 		$users_succeeded = $result[0];
 		$users_failed    = $result[1];
+		$users_orphaned  = $result[2];
 
 		$this->assertNotEmpty( $users_succeeded, 'No users marked as succeeded' );
 		$this->assertEmpty( $users_failed, 'Some users failed in notification processing' );
+		$this->assertEmpty( $users_orphaned, 'Some users marked as orphaned' );
 
 		// Ensure the succeeded user is the subscriber.
 		$this->assertEquals( $subscriber_id, $users_succeeded[0]->ID );

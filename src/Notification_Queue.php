@@ -79,6 +79,7 @@ class Notification_Queue {
 	 * @param array    $meta        Optional additional metadata.
 	 * @param int|null $trigger_id  The ID of the trigger definition.
 	 * @return int Number of notifications successfully queued.
+	 * @throws \Exception If trigger or object cannot be found.
 	 */
 	public function queue_event_notifications( string $object_type, int $object_id, string $reason, int $blog_id, array $meta = array(), ?int $trigger_id = null ): int {
 		$logger = self::logger();
@@ -108,7 +109,8 @@ class Notification_Queue {
 			}
 		}
 
-		$queued_count = 0;
+		$queued_count  = 0;
+		$recipient_ids = array();
 		try {
 			// 1. Get Channel from Trigger
 			$trigger = $this->wpdb->get_row(
@@ -121,7 +123,7 @@ class Notification_Queue {
 
 			// 2. Get the triggering object (needed for recipient resolution)
 			// Note: get_object handles blog switching internally now
-			$object = $this->get_object( $object_type, $object_id, $blog_id );
+			$object = Notification_Item::get_related_object( $object_type, $object_id, $blog_id );
 			if ( ! $object ) {
 				throw new \Exception( "Could not retrieve object {$object_type}:{$object_id} on blog {$blog_id}." );
 			}
@@ -174,13 +176,20 @@ class Notification_Queue {
 			);
 
 			// 4. Loop through recipients, determine schedule, and insert notification
+
+			// Bulk fetch schedules
+			$user_schedules = $this->scheduler->get_users_schedules( $recipient_ids, $blog_id, $channel );
+
+			$notifications_to_insert = array();
+			$current_time            = \current_time( 'mysql', true );
+
 			foreach ( $recipient_ids as $user_id ) {
 				// Use the scheduler to get schedule and calculate send time
-				$user_schedule       = $this->scheduler->get_user_schedule( $user_id, $blog_id, $channel );
+				$user_schedule       = $user_schedules[ $user_id ] ?? self::DEFAULT_SCHEDULE_TYPE;
 				$scheduled_send_time = $this->scheduler->calculate_scheduled_send_time( $user_schedule ); // Returns null for immediate
 
 				// Prepare data for insertion
-				$notification_data = array(
+				$notifications_to_insert[] = array(
 					'user_id'             => $user_id,
 					'trigger_id'          => $trigger_id,
 					'blog_id'             => $blog_id,
@@ -190,25 +199,13 @@ class Notification_Queue {
 					'status'              => 'pending', // Initial status
 					'scheduled_send_time' => $scheduled_send_time, // Can be null
 					'meta'                => $meta, // Pass the original meta array
-					'created_at'          => \current_time( 'mysql', true ),
+					'created_at'          => $current_time,
 				);
+			}
 
-				$inserted = $this->insert_notification( $notification_data );
-
-				if ( $inserted ) {
-					++$queued_count;
-				} else {
-					// Log context already includes most of the data from notification_data
-					$logger->error(
-						"Failed to insert notification for user {$user_id}.",
-						array(
-							'user_id'  => $user_id,
-							'channel'  => $channel,
-							'schedule' => $user_schedule,
-							// 'data' => $notification_data, // Avoid duplicating data already logged by insert_notification
-						)
-					);
-				}
+			if ( ! empty( $notifications_to_insert ) ) {
+				$inserted_count = $this->bulk_insert_notifications( $notifications_to_insert );
+				$queued_count   = $inserted_count;
 			}
 		} catch ( \Exception $e ) {
 			$logger->error(
@@ -243,6 +240,74 @@ class Notification_Queue {
 		);
 
 		return $queued_count;
+	}
+
+	/**
+	 * Inserts multiple notification records into the database in a single query.
+	 *
+	 * @param array $notifications Array of associative arrays containing notification details.
+	 * @return int Number of rows inserted.
+	 */
+	private function bulk_insert_notifications( array $notifications ): int {
+		$logger = self::logger();
+		if ( empty( $notifications ) ) {
+			return 0;
+		}
+
+		// Prepare columns and placeholders
+		// We assume all items have the same keys, based on how we constructed them above
+		$first_item   = reset( $notifications );
+		$columns      = array_keys( $first_item );
+		$placeholders = array();
+		$values       = array();
+
+		foreach ( $notifications as $notification ) {
+			$row_placeholders = array();
+			foreach ( $columns as $col ) {
+				$value = $notification[ $col ];
+				if ( 'meta' === $col ) {
+					if ( is_array( $value ) ) {
+						$value = \wp_json_encode( $value );
+					} elseif ( ! is_string( $value ) ) {
+						$value = \wp_json_encode( array() );
+					}
+				}
+
+				if ( is_null( $value ) ) {
+					$row_placeholders[] = 'NULL';
+				} else {
+					// Determine placeholder type
+					if ( is_int( $value ) ) {
+						$row_placeholders[] = '%d';
+					} elseif ( is_float( $value ) ) {
+						$row_placeholders[] = '%f';
+					} else {
+						$row_placeholders[] = '%s';
+					}
+					$values[] = $value;
+				}
+			}
+			$placeholders[] = '(' . implode( ', ', $row_placeholders ) . ')';
+		}
+
+		$sql = "INSERT INTO {$this->notifications_table_name} (" . implode( ', ', $columns ) . ') VALUES ' . implode( ', ', $placeholders );
+
+		$sql = $this->wpdb->prepare( $sql, $values ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$result = $this->wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( false === $result ) {
+			$logger->error(
+				'Failed to bulk insert notifications.',
+				array(
+					'error' => $this->wpdb->last_error,
+					'query' => $this->wpdb->last_query,
+				)
+			);
+			return 0;
+		}
+
+		return (int) $result;
 	}
 
 	/**
@@ -309,59 +374,6 @@ class Notification_Queue {
 		return $notification_id;
 	}
 
-	/**
-	 * Retrieves the object associated with a notification item.
-	 * Handles blog switching.
-	 *
-	 * @param string $object_type Object type ('post', 'comment', etc.).
-	 * @param int    $object_id   Object ID.
-	 * @param int    $blog_id     Blog ID where the object resides.
-	 * @return \WP_Post|\WP_Comment|mixed|null The object, or null if not found or type unsupported.
-	 */
-	private function get_object( string $object_type, int $object_id, int $blog_id ) {
-		$logger = self::logger();
-
-		// Ensure we are on the correct blog to fetch the object
-		$original_blog_id = null;
-		$switched_blog    = false;
-		if ( \is_multisite() ) {
-			$original_blog_id = \get_current_blog_id();
-			if ( $blog_id && $blog_id !== $original_blog_id ) {
-				\switch_to_blog( $blog_id );
-				$switched_blog = true;
-			}
-		}
-
-		$object = null;
-		try {
-			if ( 'post' === $object_type ) {
-				$object = \get_post( $object_id );
-			} elseif ( 'comment' === $object_type ) {
-				$object = \get_comment( $object_id );
-			} else {
-				// Allow extension for other object types
-				$object = \apply_filters( 'scoped_notify_get_notification_object', null, $object_type, $object_id, $blog_id );
-			}
-		} finally {
-			// Restore blog context if switched
-			if ( $switched_blog ) {
-				\restore_current_blog();
-			}
-		}
-
-		if ( ! $object ) {
-			$logger->warning(
-				'Could not retrieve object.',
-				array(
-					'object_type' => $object_type,
-					'object_id'   => $object_id,
-					'blog_id'     => $blog_id,
-				)
-			);
-		}
-
-		return $object;
-	}
 
 	// --- Hook Callbacks ---
 
@@ -370,8 +382,10 @@ class Notification_Queue {
 	 * Finds the relevant trigger and queues notifications for recipients.
 	 * We want to use save_post and not publish_post, because we want to be able to send notifications for private posts too.
 	 *
-	 * @param int      $post_id Post ID.
-	 * @param \WP_Post $post    Post object. Use FQN
+	 * @param int      $post_id     Post ID.
+	 * @param \WP_Post $post        Post object. Use FQN.
+	 * @param bool     $updated     Whether this is an existing post being updated.
+	 * @param \WP_Post $post_before Post object before the update.
 	 */
 	public function handle_new_post( int $post_id, \WP_Post $post, $updated, $post_before ) {
 		$logger = self::logger();
