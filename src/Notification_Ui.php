@@ -42,7 +42,7 @@ class Notification_Ui {
 			'class' => 'scoped-notify-options scoped-notify-options--blog',
 			'data'  => array(
 				'scoped_notify_icon'     => 'fa-envelope',
-				'scoped_notify_headline' => esc_html__( 'Mail Notifications', 'scoped-notify' ),
+				'scoped_notify_headline' => esc_html__( 'My Mail Notifications', 'scoped-notify' ),
 				'scoped_notify_selector' => $this->get_blog_option_selector( $blog_id ),
 			),
 			'html'  => fn( $d ) => "
