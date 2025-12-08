@@ -408,9 +408,14 @@ class Notification_Processor {
 			$chunk_size = self::CHUNK_SIZE_FALLBACK;
 		}
 
+		$chunk_pause_ms = (int) apply_filters(
+			'scoped_notify_mail_chunk_pause_ms',
+			\get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS, 0 )
+		);
+
 		$user_chunks = array_chunk( $users, $chunk_size );
 
-		foreach ( $user_chunks as $user_chunk ) {
+		foreach ( $user_chunks as $chunk_index => $user_chunk ) {
 			$sent = false;
 
 			try {
@@ -449,6 +454,12 @@ class Notification_Processor {
 				$users_succeeded = array_merge( $users_succeeded, $user_chunk );
 			} else {
 				$users_failed = array_merge( $users_failed, $user_chunk );
+			}
+
+			$has_more_chunks = ( $chunk_index + 1 ) < count( $user_chunks );
+			if ( $has_more_chunks && $chunk_pause_ms > 0 ) {
+				// Sleep between chunks to avoid overwhelming SMTP with rapid connections
+				\usleep( $chunk_pause_ms * 1000 );
 			}
 		}
 
@@ -961,6 +972,11 @@ class Notification_Processor {
 			$threading_hook = function ( $phpmailer ) use ( $current_message_id, $reply_headers ) {
 				// Force the ID for this email (Must include < > brackets)
 				$phpmailer->MessageID = $current_message_id; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+
+				// Encourage PHPMailer to keep SMTP connection open across chunked sends
+				if ( property_exists( $phpmailer, 'SMTPKeepAlive' ) ) {
+					$phpmailer->SMTPKeepAlive = true;
+				}
 
 				// If it's a comment, add the glue headers
 				if ( ! empty( $reply_headers ) ) {

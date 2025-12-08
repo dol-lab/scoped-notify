@@ -145,14 +145,18 @@ class Network_Admin_Ui {
 				$chunk_size = absint( $_POST['scoped_notify_mail_chunk_size'] );
 				if ( $chunk_size > 0 ) {
 					update_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, $chunk_size );
-					add_action(
-						'network_admin_notices',
-						function () {
-							echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'scoped-notify' ) . '</p></div>';
-						}
-					);
 				}
 			}
+			if ( isset( $_POST['scoped_notify_mail_chunk_pause_ms'] ) ) {
+				$chunk_pause = max( 0, absint( $_POST['scoped_notify_mail_chunk_pause_ms'] ) );
+				update_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS, $chunk_pause );
+			}
+			add_action(
+				'network_admin_notices',
+				function () {
+					echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'scoped-notify' ) . '</p></div>';
+				}
+			);
 		}
 	}
 
@@ -600,11 +604,14 @@ class Network_Admin_Ui {
 		echo '</div>';
 
 		// Settings Section.
-		$chunk_size   = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 400 );
-		$lbl_settings = esc_html__( 'Global Settings', 'scoped-notify' );
-		$lbl_chunk    = esc_html__( 'Mail Chunk Size', 'scoped-notify' );
-		$desc_chunk   = esc_html__( 'Number of recipients per email (BCC).', 'scoped-notify' );
-		$btn_save     = esc_attr__( 'Save Settings', 'scoped-notify' );
+		$chunk_size     = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 200 );
+		$chunk_pause_ms = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS, 0 );
+		$lbl_settings   = esc_html__( 'Global Settings', 'scoped-notify' );
+		$lbl_chunk      = esc_html__( 'Mail Chunk Size', 'scoped-notify' );
+		$desc_chunk     = esc_html__( 'Number of recipients per email (BCC).', 'scoped-notify' );
+		$lbl_pause      = esc_html__( 'Pause Between Chunks (ms)', 'scoped-notify' );
+		$desc_pause     = esc_html__( 'Delay between chunked SMTP sends to reduce concurrent connections/load.', 'scoped-notify' );
+		$btn_save       = esc_attr__( 'Save Settings', 'scoped-notify' );
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		printf(
@@ -620,12 +627,22 @@ class Network_Admin_Ui {
 								<p class="description">%s</p>
 							</td>
 						</tr>
+						<tr>
+							<th scope="row"><label for="scoped_notify_mail_chunk_pause_ms">%s</label></th>
+							<td>
+								<input name="scoped_notify_mail_chunk_pause_ms" type="number" step="50" min="0" id="scoped_notify_mail_chunk_pause_ms" value="%d" class="regular-text">
+								<p class="description">%s</p>
+							</td>
+						</tr>
 					</tbody>
 				</table>',
 			esc_html( $lbl_settings ),
 			esc_html( $lbl_chunk ),
 			(int) $chunk_size,
-			esc_html( $desc_chunk )
+			esc_html( $desc_chunk ),
+			esc_html( $lbl_pause ),
+			(int) $chunk_pause_ms,
+			esc_html( $desc_pause )
 		);
 		wp_nonce_field( 'scoped_notify_save_settings_action', 'scoped_notify_settings_nonce' );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
