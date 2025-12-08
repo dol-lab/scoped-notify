@@ -24,6 +24,7 @@ class Network_Admin_Ui {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		add_action( 'admin_init', array( $this, 'process_queue_action' ) );
 		add_action( 'admin_init', array( $this, 'reset_stuck_items_action' ) );
+		add_action( 'admin_init', array( $this, 'save_settings_action' ) );
 	}
 
 	/**
@@ -78,6 +79,26 @@ class Network_Admin_Ui {
 						echo "<div class='notice notice-error is-dismissible'><p>$msg</p></div>";
 					}
 				);
+			}
+		}
+	}
+
+	/**
+	 * Handles saving of network settings.
+	 */
+	public function save_settings_action() {
+		if ( isset( $_POST['scoped_notify_save_settings'] ) && check_admin_referer( 'scoped_notify_save_settings_action', 'scoped_notify_settings_nonce' ) ) {
+			if ( isset( $_POST['scoped_notify_mail_chunk_size'] ) ) {
+				$chunk_size = absint( $_POST['scoped_notify_mail_chunk_size'] );
+				if ( $chunk_size > 0 ) {
+					update_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, $chunk_size );
+					add_action(
+						'network_admin_notices',
+						function () {
+							echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'scoped-notify' ) . '</p></div>';
+						}
+					);
+				}
 			}
 		}
 	}
@@ -179,8 +200,46 @@ class Network_Admin_Ui {
 			<form method='post' action=''>";
 		wp_nonce_field( 'scoped_notify_reset_stuck_action', 'scoped_notify_nonce_stuck' );
 		echo "<input type='submit' name='scoped_notify_reset_stuck' class='button button-secondary' value='$btn_reset'></form>
-		</div>
-		<p>$desc</p>";
+		</div>";
+
+		// Settings Section.
+		$chunk_size   = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 400 );
+		$lbl_settings = esc_html__( 'Global Settings', 'scoped-notify' );
+		$lbl_chunk    = esc_html__( 'Mail Chunk Size', 'scoped-notify' );
+		$desc_chunk   = esc_html__( 'Number of recipients per email (BCC).', 'scoped-notify' );
+		$btn_save     = esc_attr__( 'Save Settings', 'scoped-notify' );
+
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		printf(
+			'<div class="card" style="max-width: 100%%; margin-bottom: 20px;">
+			<h2 class="title">%s</h2>
+			<form method="post" action="">
+				<table class="form-table" role="presentation">
+					<tbody>
+						<tr>
+							<th scope="row"><label for="scoped_notify_mail_chunk_size">%s</label></th>
+							<td>
+								<input name="scoped_notify_mail_chunk_size" type="number" step="1" min="1" id="scoped_notify_mail_chunk_size" value="%d" class="regular-text">
+								<p class="description">%s</p>
+							</td>
+						</tr>
+					</tbody>
+				</table>',
+			esc_html( $lbl_settings ),
+			esc_html( $lbl_chunk ),
+			(int) $chunk_size,
+			esc_html( $desc_chunk )
+		);
+		wp_nonce_field( 'scoped_notify_save_settings_action', 'scoped_notify_settings_nonce' );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		printf(
+			'<p class="submit"><input type="submit" name="scoped_notify_save_settings" id="submit" class="button button-primary" value="%s"></p>
+			</form>
+		</div>',
+			esc_attr( $btn_save )
+		);
+
+		echo "<p>$desc</p>";
 
 		foreach ( $tables as $label => $table_name ) {
 			// Check if table exists
@@ -448,7 +507,8 @@ class Network_Admin_Ui {
 
 					echo "<tr id='$row_id'>";
 					foreach ( $row as $val ) {
-						echo "<td class='scoped-notify-cell' data-full-text='" . esc_attr( (string) $val ) . "'>" . esc_html( (string) $val ) . '</td>';
+						$maybe_attr = empty( $val ) ? '' : "data-full-text='" . esc_attr( (string) $val ) . "'";
+						echo "<td class='scoped-notify-cell' $maybe_attr>" . esc_html( (string) $val ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 					}
 					echo '</tr>';
 				}

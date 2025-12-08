@@ -192,7 +192,7 @@ function activate_plugin() {
 		return; // Stop activation if critical component missing.
 	}
 
-	\add_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 400 );
+	\add_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 300 );
 	\add_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS, '' );
 
 	try {

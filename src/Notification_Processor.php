@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
 class Notification_Processor {
 	use Static_Logger_Trait;
 
-	const CHUNK_SIZE_FALLBACK = 400;
+	const CHUNK_SIZE_FALLBACK = 300;
 
 	/**
 	 * Database table name for individual notifications.
