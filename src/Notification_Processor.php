@@ -239,6 +239,25 @@ class Notification_Processor {
 		}
 
 		$logger->info( "Finished processing batch. Successfully processed {$processed_count} notifications." );
+
+		if ( $processed_count > 0 ) {
+			$stats = \get_site_option( 'scoped_notify_total_sent_count', array(
+				'count' => 0,
+				'since' => \time(),
+			) );
+
+			// Migration: If it's a simple integer, convert to array
+			if ( \is_numeric( $stats ) ) {
+				$stats = array(
+					'count' => (int) $stats,
+					'since' => \time(),
+				);
+			}
+
+			$stats['count'] += $processed_count;
+			\update_site_option( 'scoped_notify_total_sent_count', $stats );
+		}
+
 		return $processed_count;
 	}
 

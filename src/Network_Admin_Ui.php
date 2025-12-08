@@ -142,6 +142,35 @@ class Network_Admin_Ui {
 
 		echo "<div class='wrap'><h1>$title</h1>";
 
+		$stats = \get_site_option(
+			'scoped_notify_total_sent_count',
+			array(
+				'count' => 0,
+				'since' => \time(),
+			)
+		);
+		if ( \is_numeric( $stats ) ) {
+			$stats = array(
+				'count' => (int) $stats,
+				'since' => \time(),
+			);
+		}
+		$count = $stats['count'];
+		$since = \gmdate( 'Y-m-d H:i:s', $stats['since'] ) . ' GMT';
+
+		echo "<div class='card' style='max-width: 100%; margin-top: 10px; margin-bottom: 20px;'>
+			<h2 class='title'>" . esc_html__( 'System Statistics', 'scoped-notify' ) . '</h2>
+			<p>' . sprintf(
+				wp_kses(
+					/* translators: %d: number of notifications */
+					__( 'Total Notifications Sent: <strong>%d</strong>', 'scoped-notify' ),
+					array( 'strong' => array() )
+				),
+				$count
+			) . '</p>
+			<p>' . sprintf( esc_html__( 'Since: %s', 'scoped-notify' ), $since ) . '</p>
+		</div>';
+
 		// Process Queue Button
 		echo "<div style='display: flex; gap: 10px; margin-bottom: 20px;'>
 			<form method='post' action=''>";
