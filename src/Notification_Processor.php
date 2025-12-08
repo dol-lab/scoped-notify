@@ -51,20 +51,26 @@ class Notification_Processor {
 	 * Notifications are grouped by content, and a single email is sent for each set of contents, with all recipients
 	 * in bcc to avoid leaking of mailadresses
 	 *
-	 * @param int $limit Maximum number of notifications to process in one run.
+	 * @param int $limit      Maximum number of notifications to process in one run.
+	 * @param int $time_limit Optional. Maximum execution time in seconds. Default 0 (auto-detect).
 	 * @return int Number of notifications successfully processed (or attempted).
 	 */
-	public function process_queue( int $limit = 10 ): int {
+	public function process_queue( int $limit = 80, int $time_limit = 0 ): int {
 		$logger = self::logger();
 
-		$start_time         = $this->get_current_time();
-		$max_execution_time = $this->get_max_execution_time();
-		// If max_execution_time is 0 (unlimited) or very large, set a reasonable default limit for this batch
-		if ( 0 === $max_execution_time || $max_execution_time > 300 ) {
-			$max_execution_time = 300;
+		$start_time = $this->get_current_time();
+
+		if ( $time_limit > 0 ) {
+			$calc_time_limit = $time_limit;
+		} else {
+			$max_execution_time = $this->get_max_execution_time();
+			// If max_execution_time is 0 (unlimited) or very large, set a reasonable default limit for this batch
+			if ( 0 === $max_execution_time || $max_execution_time > 300 ) {
+				$max_execution_time = 300;
+			}
+			// Stop processing if we've used 80% of the time limit
+			$calc_time_limit = (int) ( $max_execution_time * 0.8 );
 		}
-		// Stop processing if we've used 80% of the time limit
-		$time_limit = $max_execution_time * 0.8;
 
 		$processed_count = 0;
 		$now_utc         = gmdate( 'Y-m-d H:i:s' ); // Get current UTC time in MySQL format
@@ -98,7 +104,7 @@ class Notification_Processor {
 			$item = Notification_Item::from_db_row( $row );
 
 			// Check for timeout before processing the next item
-			if ( ( $this->get_current_time() - $start_time ) > $time_limit ) {
+			if ( ( $this->get_current_time() - $start_time ) > $calc_time_limit ) {
 				$logger->info( 'Time limit reached. Stopping queue processing.', array( 'processed_count' => $processed_count ) );
 				break;
 			}
@@ -124,7 +130,7 @@ class Notification_Processor {
 				// Process users in batches until no more pending users are found or timeout
 				while ( true ) {
 					// Check for timeout before processing chunk
-					if ( ( $this->get_current_time() - $start_time ) > $time_limit ) {
+					if ( ( $this->get_current_time() - $start_time ) > $calc_time_limit ) {
 						$logger->info( 'Time limit reached during user processing. Stopping.', array( 'processed_count' => $processed_count ) );
 						break; // Break the while loop, finally block will release lock
 					}
@@ -241,10 +247,13 @@ class Notification_Processor {
 		$logger->info( "Finished processing batch. Successfully processed {$processed_count} notifications." );
 
 		if ( $processed_count > 0 ) {
-			$stats = \get_site_option( 'scoped_notify_total_sent_count', array(
-				'count' => 0,
-				'since' => \time(),
-			) );
+			$stats = \get_site_option(
+				'scoped_notify_total_sent_count',
+				array(
+					'count' => 0,
+					'since' => \time(),
+				)
+			);
 
 			// Migration: If it's a simple integer, convert to array
 			if ( \is_numeric( $stats ) ) {

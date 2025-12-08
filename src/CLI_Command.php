@@ -325,6 +325,12 @@ class CLI_Command {
 	 * default: 20
 	 * ---
 	 *
+	 * [--time-limit=<seconds>]
+	 * : Maximum execution time in seconds.
+	 * ---
+	 * default: 0
+	 * ---
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     # Process up to 20 items from the queue
@@ -337,7 +343,9 @@ class CLI_Command {
 	 * @subcommand process-queue
 	 */
 	public function process_queue( $args, $assoc_args ) {
-		$limit = (int) ( $assoc_args['limit'] ?? 20 );
+		$limit      = (int) ( $assoc_args['limit'] ?? 500 );
+		$time_limit = (int) ( $assoc_args['time-limit'] ?? 0 );
+
 		if ( $limit <= 0 ) {
 			\WP_CLI::error( 'Limit must be a positive integer.' );
 			return;
@@ -352,7 +360,7 @@ class CLI_Command {
 			// TODO: Get table name from config
 			$processor = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
 
-			$processed_count = $processor->process_queue( $limit );
+			$processed_count = $processor->process_queue( $limit, $time_limit );
 
 			\WP_CLI::success( "Finished processing batch. Successfully processed {$processed_count} items." );
 		} catch ( \Exception $e ) {

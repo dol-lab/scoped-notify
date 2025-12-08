@@ -34,7 +34,7 @@ class Network_Admin_Ui {
 			global $wpdb;
 			$processor = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
 			try {
-				$processed = $processor->process_queue( 50 ); // Process up to 50 items manually
+				$processed = $processor->process_queue( 50, 20 ); // Process up to 50 items manually, max 20 seconds
 				add_action(
 					'network_admin_notices',
 					function () use ( $processed ) {
