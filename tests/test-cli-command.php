@@ -151,5 +151,44 @@ namespace Scoped_Notify {
 			$item = $this->wpdb->get_row( 'SELECT * FROM ' . SCOPED_NOTIFY_TABLE_QUEUE . ' WHERE trigger_id = 1', ARRAY_A );
 			$this->assertNotEquals( 'pending', $item['status'], 'Queue item status should have changed from pending.' );
 		}
+
+		public function test_process_queue_with_time_limit() {
+			// 1. Setup Trigger
+			$trigger_id = 1;
+			$this->wpdb->insert(
+				SCOPED_NOTIFY_TABLE_TRIGGERS,
+				array(
+					'trigger_id'  => $trigger_id,
+					'trigger_key' => 'post-post',
+					'channel'     => 'mail',
+				)
+			);
+
+			$post_id = $this->factory()->post->create();
+			$this->wpdb->query( 'TRUNCATE TABLE ' . SCOPED_NOTIFY_TABLE_QUEUE );
+
+			// 2. Insert Queue Item
+			$this->wpdb->insert(
+				SCOPED_NOTIFY_TABLE_QUEUE,
+				array(
+					'user_id'     => 1,
+					'trigger_id'  => $trigger_id,
+					'blog_id'     => get_current_blog_id(),
+					'object_type' => 'post',
+					'object_id'   => $post_id,
+					'reason'      => 'test',
+					'status'      => 'pending',
+					'created_at'  => current_time( 'mysql' ),
+					'meta'        => '{}',
+				)
+			);
+
+			// 3. Run Command with time-limit
+			// Just verify it runs without error and processes the item
+			$this->cli->process_queue( array(), array( 'limit' => 5, 'time-limit' => 10 ) );
+
+			$item = $this->wpdb->get_row( 'SELECT * FROM ' . SCOPED_NOTIFY_TABLE_QUEUE . ' WHERE trigger_id = 1', ARRAY_A );
+			$this->assertNotEquals( 'pending', $item['status'], 'Queue item should be processed with time limit set.' );
+		}
 	}
 }

@@ -426,6 +426,13 @@ function process_notification_queue_cron() {
 		if ( $retention_period > 0 ) {
 			$processor->cleanup_old_notifications( $retention_period );
 		}
+		
+		// Cleanup failed notifications (keep them for 30 days by default to allow manual retry).
+		// We use the same retention period for simplicity, or a separate filter could be added.
+		$failed_retention = (int) apply_filters( 'scoped_notify_failed_retention_period', 30 * DAY_IN_SECONDS );
+		if ( $failed_retention > 0 ) {
+			$processor->cleanup_failed_notifications( $failed_retention );
+		}
 	} catch ( \Exception $e ) {
 		$logger->critical( 'Cron job failed: Unhandled exception during queue processing. ' . $e->getMessage(), array( 'exception' => $e ) );
 	}

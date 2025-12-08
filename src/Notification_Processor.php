@@ -638,6 +638,42 @@ class Notification_Processor {
 	}
 
 	/**
+	 * Cleans up old failed notifications from the queue.
+	 *
+	 * @param int $retention_period Retention period in seconds.
+	 * @return int Number of deleted rows.
+	 */
+	public function cleanup_failed_notifications( int $retention_period ): int {
+		$logger = self::logger();
+
+		$cutoff_time = gmdate( 'Y-m-d H:i:s', time() - $retention_period );
+
+		$sql = "DELETE FROM {$this->notifications_table_name}
+				WHERE status = 'failed'
+				AND created_at <= %s";
+
+		$query  = $this->wpdb->prepare( $sql, $cutoff_time ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$result = $this->wpdb->query( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( false === $result ) {
+			$logger->error(
+				'Failed to cleanup old failed notifications.',
+				array(
+					'error' => $this->wpdb->last_error,
+					'query' => $this->wpdb->last_query,
+				)
+			);
+			return 0;
+		}
+
+		if ( $result > 0 ) {
+			$logger->info( "Cleaned up {$result} old failed notifications (older than {$cutoff_time})." );
+		}
+
+		return (int) $result;
+	}
+
+	/**
 	 * Resets notifications that have been stuck in specified states for too long.
 	 *
 	 * @param int   $seconds_threshold The number of seconds after which an item is considered stuck. Default 1800 (30 minutes).
@@ -694,6 +730,64 @@ class Notification_Processor {
 		}
 
 		return $total_rows;
+	}
+
+	/**
+	 * Resets failed notifications back to pending status and increments fail_count.
+	 *
+	 * @return int The number of rows affected.
+	 */
+	public function move_failed_to_pending(): int {
+		$logger = self::logger();
+
+		// Get all failed items
+		$failed_items = $this->wpdb->get_results(
+			$this->wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				"SELECT queue_id, meta FROM {$this->notifications_table_name} WHERE status = %s",
+				'failed'
+			)
+		);
+
+		if ( empty( $failed_items ) ) {
+			return 0;
+		}
+
+		$count = 0;
+		foreach ( $failed_items as $item ) {
+			$meta = null;
+			if ( ! is_null( $item->meta ) ) {
+				$meta = json_decode( $item->meta, true );
+			}
+			if ( ! is_array( $meta ) ) {
+				$meta = array();
+			}
+
+			if ( ! isset( $meta['fail_count'] ) ) {
+				$meta['fail_count'] = 0;
+			}
+			++$meta['fail_count'];
+
+			$updated = $this->wpdb->update(
+				$this->notifications_table_name,
+				array(
+					'status' => 'pending',
+					'meta'   => wp_json_encode( $meta ),
+				),
+				array( 'queue_id' => $item->queue_id ),
+				array( '%s', '%s' ),
+				array( '%d' )
+			);
+
+			if ( false !== $updated ) {
+				++$count;
+			}
+		}
+
+		if ( $count > 0 ) {
+			$logger->info( "Reset {$count} failed items to pending with incremented fail_count." );
+		}
+
+		return $count;
 	}
 
 	private function get_author_email( $post_or_comment, $type ) {
