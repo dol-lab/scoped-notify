@@ -38,6 +38,35 @@ This plugin manages WordPress notifications:
 	- On a post (for comments)
 - It adds some tables to the network (there are no blog-specific tables)
 
+## CLI / Cron Configuration
+
+The plugin uses a custom queue processing system to handle notifications efficiently.
+
+### Manual Processing (Run Now)
+To process the notification queue immediately via the command line (useful for debugging or manual triggering):
+
+```bash
+wp scoped-notify process-queue
+```
+You can specify the batch limit (default is 20):
+```bash
+wp scoped-notify process-queue --limit=50
+```
+
+### Cron Setup
+To ensure notifications are sent reliably, you should set up a system cron job to trigger the queue processing. While WordPress has a built-in cron, a system cron is recommended for better performance and reliability.
+
+Add the following entry to your system's crontab (e.g., via `crontab -e`) to run the processor every hour:
+
+```bash
+0 * * * * /path/to/wp scoped-notify process-queue --path=/var/www/html/ --url=example.com > /dev/null 2>&1
+```
+
+*   Replace `/path/to/wp` with the actual path to your WP-CLI executable.
+*   Replace `/var/www/html/` with the path to your WordPress installation.
+*   Replace `example.com` with your site's URL.
+*   Adjust the frequency (`0 * * * *` is hourly) as needed based on your traffic and notification volume.
+
 ## Tables
 
 Check [database-tables.php](./config/database-tables.php)
@@ -161,5 +190,3 @@ define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_po
 		- Keep only the items for which the function returns `true`.
 - What about other post-types? Can be handled via the `_triggers` - table.
 - How do we deal with comment on other post-types -> comment knows about it's parent post-type, also via `_triggers`
-
-

@@ -1,0 +1,126 @@
+/* CSS for Scoped Notify admin UI. */
+
+details.scoped-notify-table-details {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	box-shadow: 0 1px 1px rgba(0,0,0,.04);
+	margin-top: 20px;
+}
+
+details.scoped-notify-table-details > summary {
+	margin: 0;
+	padding: 10px 15px;
+	cursor: pointer;
+	background: #f0f0f1;
+	border-bottom: 1px solid #c3c4c7;
+	font-size: 1.1em;
+	outline: none;
+}
+
+details.scoped-notify-table-details[open] > summary {
+	border-bottom: 1px solid #c3c4c7; /* Ensure border remains when open */
+	margin-bottom: 0;
+}
+
+details.scoped-notify-table-details > summary:hover {
+	background: #e4e4e5;
+}
+
+.scoped-notify-table-content {
+	padding: 15px;
+}
+
+.scoped-notify-table-content table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.scoped-notify-table-content th,
+.scoped-notify-table-content td {
+	padding: 8px 10px;
+	border: 1px solid #e7e7e7;
+	text-align: left;
+}
+
+/* Specific styling for the actual data table */
+.scoped-notify-data-table-container table th,
+.scoped-notify-data-table-container table td {
+	padding: 6px 8px; /* Slightly reduced padding for compactness */
+	white-space: nowrap; /* Prevent text wrapping in data cells */
+}
+
+.scoped-notify-table-content th {
+	background-color: #f7f7f7;
+}
+
+/* Common styles for truncated cells and headers with hover expansion */
+.scoped-notify-cell,
+.scoped-notify-header {
+	max-width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	position: relative;
+}
+
+.scoped-notify-cell:hover,
+.scoped-notify-header:hover {
+	overflow: visible;
+	z-index: 1000;
+}
+
+.scoped-notify-cell:hover::after,
+.scoped-notify-header:hover::after {
+	content: attr(data-full-text);
+	position: absolute;
+	top: -1px;
+	left: -1px;
+	padding: 6px 8px; /* Matches padding in .scoped-notify-data-table-container table th/td */
+	border: 1px solid #c3c4c7;
+	width: auto;
+	min-width: 100%;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	white-space: nowrap;
+	color: #333;
+}
+
+.scoped-notify-header:hover::after {
+	background-color: #f7f7f7;
+	font-weight: bold;
+}
+
+.scoped-notify-cell:hover::after {
+	background-color: #fff;
+}
+
+.scoped-notify-pagination {
+	margin-top: 10px;
+	text-align: right;
+}
+
+.scoped-notify-pagination a,
+.scoped-notify-pagination span {
+	display: inline-block;
+	padding: 5px 10px;
+	border: 1px solid #ddd;
+	background: #fff;
+	margin-left: 5px;
+	text-decoration: none;
+	color: #0073aa;
+}
+
+.scoped-notify-pagination span.current {
+	background: #f0f0f1;
+	color: #333;
+	font-weight: bold;
+}
+
+.scoped-notify-pagination a:hover {
+	background: #f0f0f1;
+}
+
+.scoped-notify-description {
+	margin-bottom: 15px;
+	font-style: italic;
+	color: #666;
+}
