@@ -959,7 +959,7 @@ class Notification_Processor {
 			$logger->error(
 				'wp_mail failed',
 				array(
-					'mails' => $user_emails,
+					/* 'mails' => $user_emails, */
 				)
 			);
 			return false;

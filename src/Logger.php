@@ -29,14 +29,33 @@ class Logger {
 
 		// create a new logger if none was stored before.
 		if ( null === $logger ) {
-			$logger = new Logger\Error_Log();
-			$level  = defined( '\WP_DEBUG' ) && \WP_DEBUG ? 'info' : 'error';
-			// use log level from .env if defined.
+			$default_level = defined( '\WP_DEBUG' ) && \WP_DEBUG ? 'info' : 'error';
+			$base_level    = $default_level;
+
+			// Optional global override.
 			if ( function_exists( '\Env\env' ) && ! empty( \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL' ) ) ) {
-				$level = \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL' );
+				$base_level = \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL' );
 			}
 
-			$logger->set_log_level( $level );
+			// Optional per-target overrides.
+			$db_level    = 'warning';
+			$error_level = $base_level;
+
+			if ( function_exists( '\Env\env' ) && ! empty( \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL_DB' ) ) ) {
+				$db_level = \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL_DB' );
+			}
+
+			if ( function_exists( '\Env\env' ) && ! empty( \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL_ERROR' ) ) ) {
+				$error_level = \Env\env( 'SCOPED_NOTIFY_LOG_LEVEL_ERROR' );
+			}
+
+			$logger = new Logger\Router(
+				new Logger\Db(),
+				new Logger\Error_Log(),
+				$db_level,
+				$error_level
+			);
+
 			self::$logger = $logger; // store logger in property.
 		}
 

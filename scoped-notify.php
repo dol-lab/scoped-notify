@@ -19,7 +19,7 @@ namespace Scoped_Notify;
 defined( 'ABSPATH' ) || exit;
 
 // Define constants
-define( 'SCOPED_NOTIFY_VERSION', '0.3.0' ); // Incremented version to trigger DB update
+define( 'SCOPED_NOTIFY_VERSION', '0.3.1' ); // Incremented version to trigger DB update
 define( 'SCOPED_NOTIFY_PLUGIN_FILE', __FILE__ );
 define( 'SCOPED_NOTIFY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOPED_NOTIFY_DB_VERSION_OPTION', 'scoped_notify_db_version' );
@@ -40,6 +40,7 @@ define( 'SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES', 'scoped_notify_settings_us
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS', 'scoped_notify_settings_blogs' );
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_TERMS', 'scoped_notify_settings_terms' );
 define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_post_comments' );
+define( 'SCOPED_NOTIFY_TABLE_LOGS', 'scoped_notify_logs' );
 
 // This meta is used so a post can set this to "no" if no notification should be sent out when the post is written.
 define( 'SCOPED_NOTIFY_META_NOTIFY_OTHERS', 'scoped_notify_notify_others' );
@@ -87,6 +88,7 @@ add_action( 'sn_after_handle_new_comment', __NAMESPACE__ . '\process_notificatio
 
 // register rest endpoint
 add_action( 'rest_api_init', Rest_Api::register_routes( ... ) );
+add_action( 'wp_mail_failed', __NAMESPACE__ . '\log_mail_failure', 10, 1 );
 
 register_meta(
 	'post',
@@ -148,6 +150,23 @@ function init() {
 
 	// add comment_settings to dropdown in post card
 	add_filter( 'ds_post_dot_menu_data', array( $ui, 'add_comment_settings_item' ), 10, 2 );
+}
+
+/**
+ * Log wp_mail failures into scoped-notify logger (db + error_log).
+ *
+ * @param \WP_Error $error Mail error instance.
+ */
+function log_mail_failure( \WP_Error $error ) {
+	$logger = Logger::create();
+	$logger->error(
+		'wp_mail_failed',
+		array(
+			'codes'    => $error->get_error_codes(),
+			'messages' => $error->get_error_messages(),
+			'data'     => $error->get_error_data(),
+		)
+	);
 }
 
 function enqueue_scripts() {
@@ -426,7 +445,7 @@ function process_notification_queue_cron() {
 		if ( $retention_period > 0 ) {
 			$processor->cleanup_old_notifications( $retention_period );
 		}
-		
+
 		// Cleanup failed notifications (keep them for 30 days by default to allow manual retry).
 		// We use the same retention period for simplicity, or a separate filter could be added.
 		$failed_retention = (int) apply_filters( 'scoped_notify_failed_retention_period', 30 * DAY_IN_SECONDS );

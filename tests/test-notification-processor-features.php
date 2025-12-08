@@ -49,7 +49,7 @@ class Scoped_Notify_Notification_Processor_Features_Test extends WP_UnitTestCase
 
 		// 1. Create Users
 		$user_ids = $this->factory()->user->create_many( 3 );
-		$post_id = $this->factory()->post->create();
+		$post_id  = $this->factory()->post->create();
 
 		$wpdb->query( 'TRUNCATE TABLE ' . SCOPED_NOTIFY_TABLE_QUEUE );
 
@@ -77,7 +77,7 @@ class Scoped_Notify_Notification_Processor_Features_Test extends WP_UnitTestCase
 		update_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 1 );
 
 		// Start time
-		$start_time = 1000000;
+		$start_time                         = 1000000;
 		$this->processor->mock_current_time = $start_time;
 
 		// Hook to advance time: +5 seconds per chunk
@@ -107,15 +107,54 @@ class Scoped_Notify_Notification_Processor_Features_Test extends WP_UnitTestCase
 		global $wpdb;
 
 		$user_ids = $this->factory()->user->create_many( 3 );
-		$post_id = $this->factory()->post->create();
+		$post_id  = $this->factory()->post->create();
 		$wpdb->query( 'TRUNCATE TABLE ' . SCOPED_NOTIFY_TABLE_QUEUE );
 
 		$blog_id = get_current_blog_id();
 
 		// Insert 2 failed items and 1 pending item
-		$wpdb->insert( SCOPED_NOTIFY_TABLE_QUEUE, [ 'blog_id' => $blog_id, 'user_id' => $user_ids[0], 'object_id' => $post_id, 'object_type' => 'post', 'trigger_id' => 1, 'status' => 'failed', 'created_at' => current_time( 'mysql' ), 'reason' => 'test', 'schedule_type' => 'immediate' ] );
-		$wpdb->insert( SCOPED_NOTIFY_TABLE_QUEUE, [ 'blog_id' => $blog_id, 'user_id' => $user_ids[1], 'object_id' => $post_id, 'object_type' => 'post', 'trigger_id' => 1, 'status' => 'failed', 'created_at' => current_time( 'mysql' ), 'reason' => 'test', 'schedule_type' => 'immediate' ] );
-		$wpdb->insert( SCOPED_NOTIFY_TABLE_QUEUE, [ 'blog_id' => $blog_id, 'user_id' => $user_ids[2], 'object_id' => $post_id, 'object_type' => 'post', 'trigger_id' => 1, 'status' => 'pending', 'created_at' => current_time( 'mysql' ), 'reason' => 'test', 'schedule_type' => 'immediate' ] );
+		$wpdb->insert(
+			SCOPED_NOTIFY_TABLE_QUEUE,
+			array(
+				'blog_id'       => $blog_id,
+				'user_id'       => $user_ids[0],
+				'object_id'     => $post_id,
+				'object_type'   => 'post',
+				'trigger_id'    => 1,
+				'status'        => 'failed',
+				'created_at'    => current_time( 'mysql' ),
+				'reason'        => 'test',
+				'schedule_type' => 'immediate',
+			)
+		);
+		$wpdb->insert(
+			SCOPED_NOTIFY_TABLE_QUEUE,
+			array(
+				'blog_id'       => $blog_id,
+				'user_id'       => $user_ids[1],
+				'object_id'     => $post_id,
+				'object_type'   => 'post',
+				'trigger_id'    => 1,
+				'status'        => 'failed',
+				'created_at'    => current_time( 'mysql' ),
+				'reason'        => 'test',
+				'schedule_type' => 'immediate',
+			)
+		);
+		$wpdb->insert(
+			SCOPED_NOTIFY_TABLE_QUEUE,
+			array(
+				'blog_id'       => $blog_id,
+				'user_id'       => $user_ids[2],
+				'object_id'     => $post_id,
+				'object_type'   => 'post',
+				'trigger_id'    => 1,
+				'status'        => 'pending',
+				'created_at'    => current_time( 'mysql' ),
+				'reason'        => 'test',
+				'schedule_type' => 'immediate',
+			)
+		);
 
 		$count = $this->processor->move_failed_to_pending();
 
@@ -133,23 +172,43 @@ class Scoped_Notify_Notification_Processor_Features_Test extends WP_UnitTestCase
 		$wpdb->query( 'TRUNCATE TABLE ' . SCOPED_NOTIFY_TABLE_QUEUE );
 		$blog_id = get_current_blog_id();
 
-		// Insert failed item older than retention (e.g., 31 days old)
-		$old_date = gmdate( 'Y-m-d H:i:s', time() - ( 31 * DAY_IN_SECONDS ) );
-		$wpdb->insert( SCOPED_NOTIFY_TABLE_QUEUE, [
-			'blog_id' => $blog_id, 'user_id' => $user_id, 'object_id' => $post_id, 'object_type' => 'post', 'trigger_id' => 1,
-			'status' => 'failed', 'created_at' => $old_date, 'reason' => 'test', 'schedule_type' => 'immediate'
-		] );
+		// Insert failed item older than retention (e.g., 91 days old)
+		$old_date = gmdate( 'Y-m-d H:i:s', time() - ( 91 * DAY_IN_SECONDS ) );
+		$wpdb->insert(
+			SCOPED_NOTIFY_TABLE_QUEUE,
+			array(
+				'blog_id'       => $blog_id,
+				'user_id'       => $user_id,
+				'object_id'     => $post_id,
+				'object_type'   => 'post',
+				'trigger_id'    => 1,
+				'status'        => 'failed',
+				'created_at'    => $old_date,
+				'reason'        => 'test',
+				'schedule_type' => 'immediate',
+			)
+		);
 
-		// Insert failed item newer than retention (e.g., 29 days old)
-		$new_date = gmdate( 'Y-m-d H:i:s', time() - ( 29 * DAY_IN_SECONDS ) );
-		$wpdb->insert( SCOPED_NOTIFY_TABLE_QUEUE, [
-			'blog_id' => $blog_id, 'user_id' => $user_id, 'object_id' => $post_id, 'object_type' => 'post', 'trigger_id' => 1,
-			'status' => 'failed', 'created_at' => $new_date, 'reason' => 'test', 'schedule_type' => 'immediate'
-		] );
+		// Insert failed item newer than retention (e.g., 89 days old)
+		$new_date = gmdate( 'Y-m-d H:i:s', time() - ( 89 * DAY_IN_SECONDS ) );
+		$wpdb->insert(
+			SCOPED_NOTIFY_TABLE_QUEUE,
+			array(
+				'blog_id'       => $blog_id,
+				'user_id'       => $user_id,
+				'object_id'     => $post_id,
+				'object_type'   => 'post',
+				'trigger_id'    => 1,
+				'status'        => 'failed',
+				'created_at'    => $new_date,
+				'reason'        => 'test',
+				'schedule_type' => 'immediate',
+			)
+		);
 
-		// Retention 30 days
+		// Retention 90 days
 		$retention = 90 * DAY_IN_SECONDS;
-		$deleted = $this->processor->cleanup_failed_notifications( $retention );
+		$deleted   = $this->processor->cleanup_failed_notifications( $retention );
 
 		$this->assertEquals( 1, $deleted, 'Should delete 1 old failed item.' );
 

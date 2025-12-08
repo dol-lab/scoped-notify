@@ -25,6 +25,7 @@ class Network_Admin_Ui {
 		add_action( 'admin_init', array( $this, 'process_queue_action' ) );
 		add_action( 'admin_init', array( $this, 'reset_stuck_items_action' ) );
 		add_action( 'admin_init', array( $this, 'retry_failed_action' ) );
+		add_action( 'admin_init', array( $this, 'clear_logs_action' ) );
 		add_action( 'admin_init', array( $this, 'save_settings_action' ) );
 	}
 
@@ -53,6 +54,29 @@ class Network_Admin_Ui {
 					}
 				);
 			}
+		}
+	}
+
+	/**
+	 * Handles clearing the logs table.
+	 */
+	public function clear_logs_action() {
+		if ( isset( $_POST['scoped_notify_clear_logs'] ) && check_admin_referer( 'scoped_notify_clear_logs_action', 'scoped_notify_nonce_clear_logs' ) ) {
+			global $wpdb;
+			$table_name = SCOPED_NOTIFY_TABLE_LOGS;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$cleared = $wpdb->query( "TRUNCATE TABLE `$table_name`" );
+
+			add_action(
+				'network_admin_notices',
+				function () use ( $cleared ) {
+					$msg = ( false === $cleared )
+					? esc_html__( 'Failed to clear logs table.', 'scoped-notify' )
+					: esc_html__( 'Logs table cleared.', 'scoped-notify' );
+					echo "<div class='notice notice-" . ( false === $cleared ? 'error' : 'success' ) . " is-dismissible'><p>$msg</p></div>";
+				}
+			);
 		}
 	}
 
@@ -173,6 +197,7 @@ class Network_Admin_Ui {
 			'Settings: Blogs'         => SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS,
 			'Settings: Terms'         => SCOPED_NOTIFY_TABLE_SETTINGS_TERMS,
 			'Settings: Post Comments' => SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS,
+			'Logs'                    => SCOPED_NOTIFY_TABLE_LOGS,
 		);
 
 		$descriptions = array(
@@ -183,6 +208,7 @@ class Network_Admin_Ui {
 			SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS         => __( 'Stores user notification preferences specific to individual blogs.', 'scoped-notify' ),
 			SCOPED_NOTIFY_TABLE_SETTINGS_TERMS         => __( 'Stores user notification preferences specific to taxonomy terms within a blog.', 'scoped-notify' ),
 			SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS => __( 'Stores user notification preferences specifically for comments on a particular post.', 'scoped-notify' ),
+			SCOPED_NOTIFY_TABLE_LOGS                   => __( 'Contains scoped-notify log entries (trimmed to newest 1000 rows).', 'scoped-notify' ),
 		);
 
 		$title = esc_html__( 'Scoped Notify Tables Overview', 'scoped-notify' );
@@ -309,6 +335,13 @@ class Network_Admin_Ui {
 
 			if ( isset( $descriptions[ $table_name ] ) ) {
 				echo "<p class='scoped-notify-description'>" . esc_html( $descriptions[ $table_name ] ) . '</p>';
+			}
+
+			if ( SCOPED_NOTIFY_TABLE_LOGS === $table_name ) {
+				echo "<form method='post' action='' style='margin: 10px 0;'>";
+				wp_nonce_field( 'scoped_notify_clear_logs_action', 'scoped_notify_nonce_clear_logs' );
+				echo "<input type='submit' name='scoped_notify_clear_logs' class='button button-secondary' value='" . esc_attr__( 'Clear Logs', 'scoped-notify' ) . "'>";
+				echo '</form>';
 			}
 
 			// Get table size and other info from information_schema

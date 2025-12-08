@@ -166,4 +166,24 @@ return array(
             FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 	),
+	array(
+		/**
+		 * Stores log messages for scoped-notify operations.
+		 */
+		'name'    => SCOPED_NOTIFY_TABLE_LOGS,
+		'columns' => array(
+			'id'           => 'bigint(20) unsigned NOT NULL AUTO_INCREMENT',
+			'level'        => "varchar(20) NOT NULL DEFAULT 'error'",
+			'message'      => 'longtext',
+			'data'         => 'longtext',
+			'date_created' => 'datetime DEFAULT CURRENT_TIMESTAMP',
+		),
+		'create'  => 'CREATE TABLE {name} (
+            {columns_create},
+            PRIMARY KEY (`id`)
+        )',
+		'updates' => array(
+			'0.3.1' => 'create', // the table was introduced in this version.
+		),
+	),
 );
