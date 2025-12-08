@@ -574,6 +574,42 @@ class Notification_Processor {
 	}
 
 	/**
+	 * Cleans up old sent notifications from the queue.
+	 *
+	 * @param int $retention_period Retention period in seconds.
+	 * @return int Number of deleted rows.
+	 */
+	public function cleanup_old_notifications( int $retention_period ): int {
+		$logger = self::logger();
+
+		$cutoff_time = gmdate( 'Y-m-d H:i:s', time() - $retention_period );
+
+		$sql = "DELETE FROM {$this->notifications_table_name}
+				WHERE status = 'sent'
+				AND sent_at <= %s";
+
+		$query  = $this->wpdb->prepare( $sql, $cutoff_time ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$result = $this->wpdb->query( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( false === $result ) {
+			$logger->error(
+				'Failed to cleanup old notifications.',
+				array(
+					'error' => $this->wpdb->last_error,
+					'query' => $this->wpdb->last_query,
+				)
+			);
+			return 0;
+		}
+
+		if ( $result > 0 ) {
+			$logger->info( "Cleaned up {$result} old sent notifications (older than {$cutoff_time})." );
+		}
+
+		return (int) $result;
+	}
+
+	/**
 	 * Resets notifications that have been stuck in specified states for too long.
 	 *
 	 * @param int   $seconds_threshold The number of seconds after which an item is considered stuck. Default 1800 (30 minutes).

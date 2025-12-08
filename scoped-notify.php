@@ -44,6 +44,9 @@ define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_po
 // This meta is used so a post can set this to "no" if no notification should be sent out when the post is written.
 define( 'SCOPED_NOTIFY_META_NOTIFY_OTHERS', 'scoped_notify_notify_others' );
 
+// Default retention period for sent notifications (30 days).
+define( 'SCOPED_NOTIFY_RETENTION_PERIOD', 30 * 24 * 60 * 60 );
+
 // Include Composer autoloader if it exists.
 if ( file_exists( SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
 	require_once SCOPED_NOTIFY_PLUGIN_DIR . 'vendor/autoload.php';
@@ -311,7 +314,7 @@ function check_for_updates() {
 	$logger               = Logger::create();
 	$installed_db_version = \get_site_option( SCOPED_NOTIFY_DB_VERSION_OPTION, '0.0.0' );
 
-	if ( \version_compare( $installed_db_version, SCOPED_NOTIFY_VERSION, '<' ) ) {
+	if ( '0.0.0' !== $installed_db_version && \version_compare( $installed_db_version, SCOPED_NOTIFY_VERSION, '<' ) ) {
 		$logger->info( "Scoped Notify DB Update Check: Updating schema from v{$installed_db_version} to v" . SCOPED_NOTIFY_VERSION );
 
 		if ( ! class_exists( SchemaManager::class ) ) {
@@ -417,6 +420,12 @@ function process_notification_queue_cron() {
 		// Process a limited number of items per run.
 		$processed_count = $processor->process_queue( apply_filters( 'scoped_notify_cron_batch_limit', 20 ) ); // Allow filtering batch size.
 		$logger->info( "Cron job finished: Processed {$processed_count} queue items." );
+
+		// Cleanup old sent notifications.
+		$retention_period = (int) apply_filters( 'scoped_notify_retention_period', SCOPED_NOTIFY_RETENTION_PERIOD );
+		if ( $retention_period > 0 ) {
+			$processor->cleanup_old_notifications( $retention_period );
+		}
 	} catch ( \Exception $e ) {
 		$logger->critical( 'Cron job failed: Unhandled exception during queue processing. ' . $e->getMessage(), array( 'exception' => $e ) );
 	}
