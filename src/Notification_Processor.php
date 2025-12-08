@@ -814,8 +814,13 @@ class Notification_Processor {
 		return $bcc;
 	}
 
+	public function get_to_email() {
+		/** @todo: make this a plugin-standalone value. */
+		return get_site_option( 'spaces_mail_from', 'noreply@example.com' );
+	}
+
 	public function get_reply_to() {
-		$reply_to = get_site_option( 'spaces_mail_from' );
+		$reply_to = $this->get_to_email();
 		if ( ! empty( $reply_to ) ) {
 			return "Reply-To: (no-reply) <{$reply_to}>";
 		} else {
@@ -938,7 +943,7 @@ class Notification_Processor {
 
 			add_action( 'phpmailer_init', $threading_hook );
 
-			$sent = \wp_mail( '', $subject, $body, $headers );
+			$sent = \wp_mail( $this->get_to_email(), $subject, $body, $headers );
 
 			remove_action( 'phpmailer_init', $threading_hook );
 		} catch ( \Exception $e ) {
