@@ -961,12 +961,10 @@ class Notification_Processor {
 		}
 
 		if ( ! $sent ) {
-			$logger->error(
-				'wp_mail failed',
-				array(
-					/* 'mails' => $user_emails, */
-				)
-			);
+			/*
+			We get this with more detail from wp_mail_failed
+			$logger->error('wp_mail failed',array());
+			*/
 			return false;
 		}
 		return true;
