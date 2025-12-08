@@ -8,7 +8,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2025-06-13T13:03:58+00:00\n"
-"PO-Revision-Date: 2025-12-08 15:41+0000\n"
+"PO-Revision-Date: 2025-12-08 15:48+0000\n"
 "Language: de_DE\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Loco https://localise.biz/\n"
@@ -179,7 +179,7 @@ msgstr "Prev"
 
 #: src/Network_Admin_Ui.php:139
 msgid "Process Pending Now"
-msgstr "Verarbeite Ausstehende (pending) Benachrichtigungen"
+msgstr "Verarbeite ausstehende Benachrichtigungen"
 
 #: src/Network_Admin_Ui.php:41
 msgid "Processed %d notifications."
