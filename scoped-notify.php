@@ -28,6 +28,7 @@ define( 'SCOPED_NOTIFY_CRON_HOOK', 'scoped_notify_process_queue' ); // Define cr
 // Names for site_options
 define( 'SCOPED_NOTIFY_MAIL_CHUNK_SIZE', 'scoped_notify_mail_chunk_size' ); // how many email adresses to use in bcc:
 define( 'SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS', 'scoped_notify_mail_chunk_pause_ms' ); // pause between chunked SMTP sends (milliseconds)
+define( 'SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT', 'scoped_notify_manual_process_limit' ); // manual queue processing batch size
 define( 'SCOPED_NOTIFY_EMAIL_TO_ADDRESS', 'scoped_notify_email_to_address' ); // the to-adress for the mails
 
 // The global default if no special notification settings exist on any level
@@ -214,6 +215,7 @@ function activate_plugin() {
 
 	\add_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 200 );
 	\add_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS, 0 );
+	\add_site_option( SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT, 50 );
 	\add_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS, '' );
 
 	try {
@@ -312,6 +314,7 @@ function deactivate_plugin() {
 
 	\delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE );
 	\delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS );
+	\delete_site_option( SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT );
 	\delete_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS );
 }
 
@@ -424,6 +427,7 @@ function uninstall_plugin() {
 	\delete_site_option( SCOPED_NOTIFY_DB_VERSION_OPTION );
 	\delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE );
 	\delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS );
+	\delete_site_option( SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT );
 	\delete_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS );
 	$logger->info( 'Scoped Notify Uninstall: Options deleted.' );
 }

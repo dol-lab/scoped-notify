@@ -35,9 +35,13 @@ class Network_Admin_Ui {
 	public function process_queue_action() {
 		if ( isset( $_POST['scoped_notify_process_queue'] ) && check_admin_referer( 'scoped_notify_process_queue_action', 'scoped_notify_nonce' ) ) {
 			global $wpdb;
-			$processor = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
+			$processor    = new Notification_Processor( $wpdb, SCOPED_NOTIFY_TABLE_QUEUE );
+			$manual_limit = (int) get_site_option( SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT, 50 );
+			if ( $manual_limit < 1 ) {
+				$manual_limit = 50;
+			}
 			try {
-				$processed = $processor->process_queue( 50, 20 ); // Process up to 50 items manually, max 20 seconds
+				$processed = $processor->process_queue( $manual_limit, 20 ); // Process up to configured items manually, max 20 seconds
 				add_action(
 					'network_admin_notices',
 					function () use ( $processed ) {
@@ -141,6 +145,10 @@ class Network_Admin_Ui {
 	 */
 	public function save_settings_action() {
 		if ( isset( $_POST['scoped_notify_save_settings'] ) && check_admin_referer( 'scoped_notify_save_settings_action', 'scoped_notify_settings_nonce' ) ) {
+			if ( isset( $_POST['scoped_notify_manual_process_limit'] ) ) {
+				$manual_limit = max( 1, absint( $_POST['scoped_notify_manual_process_limit'] ) );
+				update_site_option( SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT, $manual_limit );
+			}
 			if ( isset( $_POST['scoped_notify_mail_chunk_size'] ) ) {
 				$chunk_size = absint( $_POST['scoped_notify_mail_chunk_size'] );
 				if ( $chunk_size > 0 ) {
@@ -604,39 +612,55 @@ class Network_Admin_Ui {
 		echo '</div>';
 
 		// Settings Section.
-		$chunk_size     = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 200 );
-		$chunk_pause_ms = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS, 0 );
-		$lbl_settings   = esc_html__( 'Global Settings', 'scoped-notify' );
-		$lbl_chunk      = esc_html__( 'Mail Chunk Size', 'scoped-notify' );
-		$desc_chunk     = esc_html__( 'Number of recipients per email (BCC).', 'scoped-notify' );
-		$lbl_pause      = esc_html__( 'Pause Between Chunks (ms)', 'scoped-notify' );
-		$desc_pause     = esc_html__( 'Delay between chunked SMTP sends to reduce concurrent connections/load.', 'scoped-notify' );
-		$btn_save       = esc_attr__( 'Save Settings', 'scoped-notify' );
+		$manual_process_limit = (int) get_site_option( SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT, 50 );
+		$chunk_size           = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 200 );
+		$chunk_pause_ms       = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS, 0 );
+		$lbl_settings         = esc_html__( 'Global Settings', 'scoped-notify' );
+		$lbl_manual_limit     = esc_html__( 'Manual Process Limit', 'scoped-notify' );
+		$desc_manual_limit    = esc_html__( 'Number of queue items processed when clicking Process Pending.', 'scoped-notify' );
+		$lbl_chunk            = esc_html__( 'Mail Chunk Size', 'scoped-notify' );
+		$desc_chunk           = esc_html__( 'Number of recipients per email (BCC).', 'scoped-notify' );
+		$lbl_pause            = esc_html__( 'Pause Between Chunks (ms)', 'scoped-notify' );
+		$desc_pause           = esc_html__( 'Delay between chunked SMTP sends to reduce concurrent connections/load.', 'scoped-notify' );
+		$btn_save             = esc_attr__( 'Save Settings', 'scoped-notify' );
 
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		printf(
 			'<div class="card" style="max-width: 100%%; margin-bottom: 20px;">
-			<h2 class="title">%s</h2>
-			<form method="post" action="">
-				<table class="form-table" role="presentation">
-					<tbody>
-						<tr>
-							<th scope="row"><label for="scoped_notify_mail_chunk_size">%s</label></th>
-							<td>
-								<input name="scoped_notify_mail_chunk_size" type="number" step="1" min="1" id="scoped_notify_mail_chunk_size" value="%d" class="regular-text">
-								<p class="description">%s</p>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row"><label for="scoped_notify_mail_chunk_pause_ms">%s</label></th>
-							<td>
-								<input name="scoped_notify_mail_chunk_pause_ms" type="number" step="50" min="0" id="scoped_notify_mail_chunk_pause_ms" value="%d" class="regular-text">
-								<p class="description">%s</p>
-							</td>
-						</tr>
-					</tbody>
-				</table>',
+						<h2 class="title">%s</h2>
+						<form method="post" action="">
+							<table class="form-table" role="presentation">
+								<tbody>
+									<tr>
+										<th scope="row"><label for="scoped_notify_manual_process_limit">%s</label></th>
+										<td>
+											<input name="scoped_notify_manual_process_limit" type="number" step="1" min="1"
+												id="scoped_notify_manual_process_limit" value="%d" class="regular-text">
+											<p class="description">%s</p>
+										</td>
+									</tr>
+									<tr>
+										<th scope="row"><label for="scoped_notify_mail_chunk_size">%s</label></th>
+										<td>
+											<input name="scoped_notify_mail_chunk_size" type="number" step="1" min="1"
+												id="scoped_notify_mail_chunk_size" value="%d" class="regular-text">
+											<p class="description">%s</p>
+										</td>
+									</tr>
+									<tr>
+										<th scope="row"><label for="scoped_notify_mail_chunk_pause_ms">%s</label></th>
+										<td>
+											<input name="scoped_notify_mail_chunk_pause_ms" type="number" step="50" min="0"
+												id="scoped_notify_mail_chunk_pause_ms" value="%d" class="regular-text">
+											<p class="description">%s</p>
+										</td>
+									</tr>
+								</tbody>
+							</table>',
 			esc_html( $lbl_settings ),
+			esc_html( $lbl_manual_limit ),
+			(int) $manual_process_limit,
+			esc_html( $desc_manual_limit ),
 			esc_html( $lbl_chunk ),
 			(int) $chunk_size,
 			esc_html( $desc_chunk ),
