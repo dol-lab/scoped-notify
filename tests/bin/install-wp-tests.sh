@@ -9,7 +9,7 @@
 # Exit on any error.
 set -e
 
-if [ $# -lt 3 ]; then
+if [[ $# -lt 3 ]]; then
 	echo "usage: $0 <db-name> <db-user> <db-pass> [db-host] [wp-version] [skip-database-creation]"
 	exit 1
 fi
@@ -25,7 +25,7 @@ if command_exists svn; then
 else
 	echo "SVN is not installed. Installing SVN..."
 	# Check for root privileges before using sudo
-	if [ "$(id -u)" = "0" ]; then
+	if [[ "$(id -u)" = "0" ]]; then
 		apt-get update -y
 		apt-get install -y subversion
 	else
@@ -50,14 +50,14 @@ WP_VERSION=${5-latest}
 SKIP_DB_CREATE=${6-false}
 
 TMPDIR=${TMPDIR-/tmp}
-TMPDIR=$(echo $TMPDIR | sed -e "s/\/$//")
+TMPDIR=$(echo "$TMPDIR" | sed -e "s/\/$//" || true)
 WP_TESTS_DIR=${WP_TESTS_DIR-$TMPDIR/wordpress-tests-lib}
 WP_CORE_DIR=${WP_CORE_DIR-$TMPDIR/wordpress}
 
 download() {
-	if [ `which curl` ]; then
-		curl -s "$1" > "$2";
-	elif [ `which wget` ]; then
+	if command_exists curl; then
+		curl -s "$1" > "$2"
+	elif command_exists wget; then
 		wget -nv -O "$2" "$1"
 	fi
 }
@@ -80,7 +80,7 @@ elif [[ $WP_VERSION == 'nightly' || $WP_VERSION == 'trunk' ]]; then
 else
 	# Fetch the latest version from the WordPress API.
 	download http://api.wordpress.org/core/version-check/1.7/ /tmp/wp-latest.json
-	LATEST_VERSION=$(grep -o '"version":"[^"]*' /tmp/wp-latest.json | sed 's/"version":"//')
+	LATEST_VERSION=$(grep -o '"version":"[^"]*' /tmp/wp-latest.json | sed 's/"version":"//' || true)
 	if [[ -z "$LATEST_VERSION" ]]; then
 		echo "Latest WordPress version could not be found."
 		exit 1
@@ -92,7 +92,7 @@ fi
 set -ex
 
 install_wp() {
-	if [ -d $WP_CORE_DIR ]; then
+	if [[ -d $WP_CORE_DIR ]]; then
 		echo "WordPress core already installed."
 		return;
 	fi
@@ -102,15 +102,16 @@ install_wp() {
 	if [[ $WP_VERSION == 'nightly' || $WP_VERSION == 'trunk' ]]; then
 		svn export https://core.svn.wordpress.org/trunk $WP_CORE_DIR
 	else
-		if [ $WP_VERSION == 'latest' ]; then
+		if [[ $WP_VERSION == 'latest' ]]; then
 			local ARCHIVE_NAME='latest'
 		elif [[ $WP_VERSION =~ [0-9]+\.[0-9]+ ]]; then
 			download https://api.wordpress.org/core/version-check/1.7/ $TMPDIR/wp-latest.json
 			if [[ $WP_VERSION =~ [0-9]+\.[0-9]+\.[0] ]]; then
 				LATEST_VERSION=${WP_VERSION%??}
 			else
-				local VERSION_ESCAPED=`echo $WP_VERSION | sed 's/\./\\\\./g'`
-				LATEST_VERSION=$(grep -o '"version":"'$VERSION_ESCAPED'[^"]*' $TMPDIR/wp-latest.json | sed 's/"version":"//' | head -1)
+				local VERSION_ESCAPED
+				VERSION_ESCAPED=$(echo "$WP_VERSION" | sed 's/\./\\\\./g')
+				LATEST_VERSION=$(grep -o '"version":"'"$VERSION_ESCAPED"'[^"]*' "$TMPDIR/wp-latest.json" | sed 's/"version":"//' | head -1 || true)
 			fi
 			if [[ -z "$LATEST_VERSION" ]]; then
 				local ARCHIVE_NAME="wordpress-$WP_VERSION"
@@ -136,16 +137,16 @@ install_test_suite() {
 	fi
 
 	# set up testing suite if it doesn't yet exist
-	if [ ! -d $WP_TESTS_DIR ]; then
+	if [[ ! -d $WP_TESTS_DIR ]]; then
 		mkdir -p $WP_TESTS_DIR
 		svn export --ignore-externals https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/includes/ $WP_TESTS_DIR/includes
 		svn export --ignore-externals https://develop.svn.wordpress.org/${WP_TESTS_TAG}/tests/phpunit/data/ $WP_TESTS_DIR/data
 	fi
 
-	if [ ! -f wp-tests-config.php ]; then
+	if [[ ! -f wp-tests-config.php ]]; then
 		download https://develop.svn.wordpress.org/${WP_TESTS_TAG}/wp-tests-config-sample.php "$WP_TESTS_DIR"/wp-tests-config.php
 		# remove all forward slashes in the end
-		WP_CORE_DIR=$(echo $WP_CORE_DIR | sed "s:/\+$::")
+		WP_CORE_DIR=$(echo "$WP_CORE_DIR" | sed "s:/\+$::" || true)
 		sed $ioption "s:dirname( __FILE__ ) . '/src/':'$WP_CORE_DIR/':" "$WP_TESTS_DIR"/wp-tests-config.php
 		sed $ioption "s:__DIR__ . '/src/':'$WP_CORE_DIR/':" "$WP_TESTS_DIR"/wp-tests-config.php
 		sed $ioption "s/youremptytestdbnamehere/$DB_NAME/" "$WP_TESTS_DIR"/wp-tests-config.php
@@ -156,7 +157,7 @@ install_test_suite() {
 }
 
 install_db() {
-	if [ ${SKIP_DB_CREATE} = "true" ]; then
+	if [[ ${SKIP_DB_CREATE} = "true" ]]; then
 		echo "Skipping database creation."
 		return 0
 	fi
@@ -167,12 +168,12 @@ install_db() {
 	local DB_SOCK_OR_PORT=${PARTS[1]};
 	local EXTRA=""
 
-	if ! [ -z $DB_HOSTNAME ] ; then
-		if [ $(echo $DB_SOCK_OR_PORT | grep -e '^[0-9]\{1,\}$') ]; then
+	if [echo "$DB_SOCK_OR_PORT" | grep -q '^[0-9]\{1,\}$'
+		if [[ $(echo $DB_SOCK_OR_PORT | grep -e '^[0-9]\{1,\}$') ]]; then
 			EXTRA=" --host=$DB_HOSTNAME --port=$DB_SOCK_OR_PORT --protocol=tcp"
-		elif ! [ -z $DB_SOCK_OR_PORT ] ; then
+		elif [[ ! -z $DB_SOCK_OR_PORT ]] ; then
 			EXTRA=" --socket=$DB_SOCK_OR_PORT"
-		elif ! [ -z $DB_HOSTNAME ] ; then
+		elif [[ ! -z $DB_HOSTNAME ]] ; then
 			EXTRA=" --host=$DB_HOSTNAME --protocol=tcp"
 		fi
 	fi
