@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # The query is the only required argument.
-if [ $# -lt 1 ]; then
+if [[ $# -lt 1 ]]; then
     echo "Executes a SQL query using credentials from the wp-tests-config.php file."
     echo "usage: $0 <query>"
     echo "example: $0 \"SELECT user_login FROM wp_users;\""
@@ -15,7 +15,7 @@ TMPDIR=${TMPDIR-/tmp}
 CONFIG_FILE="$TMPDIR/wordpress-tests-lib/wp-tests-config.php"
 
 # Check if the configuration file exists.
-if [ ! -f "$CONFIG_FILE" ]; then
+if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "❌ Error: Configuration file not found at '$CONFIG_FILE'"
     echo "Please run the 'install-wp-tests.sh' script first to generate it."
     exit 1
@@ -29,17 +29,17 @@ DB_HOST=$(grep "define( 'DB_HOST'" "$CONFIG_FILE" | sed -n "s/.*, '\([^']*\)'.*/
 
 
 # Verify that the variables were extracted successfully.
-if [ -z "$DB_NAME" ] || [ -z "$DB_USER" ]; then
+if [[ -z "$DB_NAME" || -z "$DB_USER" ]]; then
     echo "❌ Error: Could not parse database credentials from '$CONFIG_FILE'."
     exit 1
 fi
 
 # Diagnostic Output
-echo "⚙️  Found credentials in '$CONFIG_FILE': Host: $DB_HOST, Name: $DB_NAME, User: $DB_USER, Pass: $( [ -n "$DB_PASS" ] && echo '[found]' || echo '[empty]' )"
+echo "⚙️  Found credentials in '$CONFIG_FILE': Host: $DB_HOST, Name: $DB_NAME, User: $DB_USER, Pass: $( [[ -n "$DB_PASS" ]] && echo '[found]' || echo '[empty]' )"
 
 # Handle Empty Password
 PASS_ARG=""
-if [ -n "$DB_PASS" ]; then
+if [[ -n "$DB_PASS" ]]; then
     PASS_ARG="-p$DB_PASS"
 fi
 
@@ -51,7 +51,7 @@ echo "SQL: $QUERY"
 mysql -u"$DB_USER" $PASS_ARG -h"$DB_HOST" "$DB_NAME" -e "$QUERY"
 
 # Check the exit status of the mysql command.
-if [ $? -eq 0 ]; then
+if [[ $? -eq 0 ]]; then
     echo "✅ Query executed successfully."
 else
     echo "❌ Error executing query."
