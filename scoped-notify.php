@@ -224,7 +224,7 @@ function activate_plugin() {
 			throw new TableConfigurationException( 'Database configuration file not found at ' . $config_file );
 		}
 
-		$table_configs = require $config_file;
+		$table_configs = require_once $config_file;
 		if ( empty( $table_configs ) || ! \is_array( $table_configs ) ) {
 			throw new TableConfigurationException( 'Invalid or empty table configurations loaded.' );
 		}
@@ -352,7 +352,7 @@ function check_for_updates() {
 			if ( ! file_exists( $config_file ) ) {
 				throw new TableConfigurationException( 'Database configuration file not found during update check.' );
 			}
-			$table_configs = require $config_file;
+			$table_configs = require_once $config_file;
 			if ( empty( $table_configs ) || ! \is_array( $table_configs ) ) {
 				throw new TableConfigurationException( 'Invalid or empty table configurations loaded during update check.' );
 			}
@@ -410,7 +410,7 @@ function uninstall_plugin() {
 	} else {
 		try {
 			$config_file   = SCOPED_NOTIFY_PLUGIN_DIR . 'config/database-tables.php';
-			$table_configs = file_exists( $config_file ) ? require $config_file : array();
+			$table_configs = file_exists( $config_file ) ? require_once $config_file : array();
 			$db_manager    = new SchemaManager( $table_configs, $wpdb, $logger );
 			$db_manager->uninstall();
 			$logger->info( 'Scoped Notify Uninstall: Table drop process completed (or tables did not exist).' );
