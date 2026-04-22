@@ -514,6 +514,12 @@ class Notification_Queue {
 			return;
 		}
 
+		// Only queue standard comments (e.g. ignore Gutenberg block notes)
+		if ( ! empty( $comment->comment_type ) && 'comment' !== $comment->comment_type ) {
+			$logger->info( "Comment type '{$comment->comment_type}' is not 'comment' - no notifications sent." );
+			return;
+		}
+
 		// Avoid queueing if comment is by the post author? Maybe configurable.
 
 		$blog_id     = \get_current_blog_id();

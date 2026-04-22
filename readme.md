@@ -119,6 +119,7 @@ define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_po
 - ✅ Internationalization: Use WordPress localization functions (__(), _e(), etc.) for all user-facing strings.
 - 👷 Handles errors. Warns an admin if notifications are not sent.
 - ❓ Removes old queue entries.
+- 👷 Gutenberg block notes and internal comments (where `comment_type` is not standard) are ignored and do not trigger email notifications. Would be nice to handle that.
 
 
 ### UI
