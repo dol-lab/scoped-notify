@@ -11,10 +11,6 @@ namespace Scoped_Notify;
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit;
 
-// Use fully qualified names for WP classes
-use WP_Post;
-use WP_Comment;
-
 /**
  * provides html radio-groups for network, blog and comment settings
  */
@@ -27,57 +23,38 @@ class Notification_Ui {
 	public function __construct() {}
 
 	/**
-	 * adds radiogroup with blog settings wrapped as settings-item, called by filter 'default_space_setting' in theme 'defaultspace'
-	 * @param array $settings_items .
-	 * @return array $settings_items with added radiogroup
+	 * Renders the standalone notification settings on the WordPress user profile screen.
+	 * Hooked to 'show_user_profile' and 'edit_user_profile' so the network default and the
+	 * current-blog preference are reachable without the 'defaultspace' theme.
+	 *
+	 * @param \WP_User $user The profile being edited.
+	 * @return void
 	 */
-	public function add_blog_settings_item( array $settings_items ) {
-		$blog_id = get_current_blog_id();
-		if ( ! is_user_member_of_blog( wp_get_current_user()->ID, $blog_id ) ) {
-			return $settings_items;
+	public static function render_profile_settings( \WP_User $user ) {
+		// Only the profile owner and super admins may see/change these settings.
+		if ( get_current_user_id() !== $user->ID && ! is_super_admin() ) {
+			return;
 		}
 
-		$sn_settings = array(
-			'id'    => 'scoped-notify-blog-notification',
-			'class' => 'scoped-notify-options scoped-notify-options--blog',
-			'data'  => array(
-				'scoped_notify_icon'     => 'fa-envelope',
-				'scoped_notify_headline' => esc_html__( 'My Mail Notifications', 'scoped-notify' ),
-				'scoped_notify_selector' => $this->get_blog_option_selector( $blog_id ),
-			),
-			'html'  => fn( $d ) => "
-				<a href='#'>
-					<i class='fa {$d['scoped_notify_icon']} scoped-notify-icon' aria-hidden='true'></i>
-					<span>{$d['scoped_notify_headline']}</span>
-				</a>
-				{$d['scoped_notify_selector']}
-			",
-		);
-		array_splice( $settings_items, 1, 0, array( $sn_settings ) );
-		return $settings_items;
-	}
+		$blog_id        = get_current_blog_id();
+		$is_blog_member = is_user_member_of_blog( $user->ID, $blog_id );
 
-	/**
-	 * adds toggle with comment notification settings, called by filter 'ds_post_dot_menu_data' in theme 'defaultspace'
-	 * @param array   $buttons
-	 * @param WP_Post $post The post object.
-	 * @return array    $buttons with added toggle
-	 */
-	public function add_comment_settings_item( array $buttons, WP_Post $post ) {
-		$blog_id = get_current_blog_id();
-		if ( ! is_user_member_of_blog( wp_get_current_user()->ID, $blog_id ) ) {
-			return $buttons;
-		}
-		if ( 'post' !== $post->post_type ) {
-			return $buttons;
-		}
+		$title         = esc_html__( 'Email Notifications', 'scoped-notify' );
+		$network_label = esc_html__( 'Default for all sites', 'scoped-notify' );
+		$blog_name     = (string) get_blog_option( $blog_id, 'blogname' );
+		$blog_name     = mb_strimwidth( $blog_name, 0, 40, '…' );
+		/* translators: %s: site/blog title. */
+		$blog_label      = sprintf( esc_html__( 'This site (%s)', 'scoped-notify' ), esc_html( $blog_name ) );
+		$network_options = self::get_network_option_selector( $user->ID );
 
-		$sn_settings = array(
-			'html' => $this->get_comment_toggle( $blog_id, $post->ID ),
-			'show' => true,
-		);
-		array_unshift( $buttons, $sn_settings );
-		return $buttons;
+		echo '<h2>' . $title . '</h2>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo "<table class='form-table' role='presentation'><tbody>";
+		echo "<tr><th scope='row'>$network_label</th><td>$network_options</td></tr>"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		if ( $is_blog_member ) {
+			$blog_options = self::get_blog_option_selector( $blog_id, $user->ID );
+			echo "<tr><th scope='row'>$blog_label</th><td>$blog_options</td></tr>"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		}
+		echo '</tbody></table>';
 	}
 
 	public static function get_current_network_setting( int $uid ): string {
@@ -131,11 +108,12 @@ class Notification_Ui {
 
 	/**
 	 * create blog option radiogroup
-	 * @param int $blog_id
+	 * @param int      $blog_id  blog whose preferences to show.
+	 * @param int|null $user_id  user whose preferences to show; defaults to the current user.
 	 * @return string   html with radiogroup
 	 */
-	private function get_blog_option_selector( int $blog_id ) {
-		$user_id         = wp_get_current_user()->ID;
+	public static function get_blog_option_selector( int $blog_id, ?int $user_id = null ) {
+		$user_id         = $user_id ?? wp_get_current_user()->ID;
 		$current_setting = User_Preferences::get_blog_preference( $user_id, $blog_id );
 		$default_setting = User_Preferences::get_network_preference( $user_id );
 		$scope           = Scope::Blog->value;
@@ -220,7 +198,7 @@ class Notification_Ui {
 	 * @param int $post_id
 	 * @return string   html with toggle
 	 */
-	private function get_comment_toggle( int $blog_id, int $post_id ) {
+	public static function get_comment_toggle( int $blog_id, int $post_id ) {
 		$current_setting = User_Preferences::get_post_toggle_state( wp_get_current_user()->ID, $blog_id, $post_id );
 		$scope           = Scope::Post->value;
 		$toggle_id       = uniqid( 'scoped-notify-toggle-', true );

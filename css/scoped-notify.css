@@ -26,3 +26,21 @@ currently the following own classes exist:
 .scoped-notify-options .scoped-notify-radio-label {
 	font-size: .8rem;
 }
+
+/*
+ * Visually-hidden helper. On the theme front end this comes from Foundation,
+ * but the wp-admin profile screens (profile.php / user-edit.php) load this
+ * stylesheet without Foundation, so the screen-reader-only label copy would
+ * otherwise render visible (e.g. "For Posts For Posts").
+ */
+.scoped-notify-options-list .show-for-sr {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}

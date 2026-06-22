@@ -83,6 +83,7 @@ add_action( SCOPED_NOTIFY_CRON_HOOK, __NAMESPACE__ . '\process_notification_queu
 add_action( 'plugins_loaded', __NAMESPACE__ . '\in_plugins_loaded', 20 ); // Run after update check and cron schedule definition.
 add_action( 'init', __NAMESPACE__ . '\init', 20 );
 add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\enqueue_scripts', 1 );
+add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\enqueue_admin_scripts', 1 );
 
 // Trigger cron job processing after new post/comment handling. This is not async so user might have to wait.
 add_action( 'sn_after_handle_new_post', __NAMESPACE__ . '\process_notification_queue_cron' );
@@ -141,17 +142,14 @@ function in_plugins_loaded() {
 
 
 function init() {
-	$ui               = new Notification_Ui(); // Create html for notification
 	$network_admin_ui = new Network_Admin_Ui(); // Create network admin UI
 
 	// Load text domain for localization.
 	load_plugin_textdomain( 'scoped-notify', false, \dirname( \plugin_basename( SCOPED_NOTIFY_PLUGIN_FILE ) ) . '/languages/' );
 
-	// add blog_settings to defaulttheme sidebar
-	add_filter( 'default_space_setting', array( $ui, 'add_blog_settings_item' ) );
-
-	// add comment_settings to dropdown in post card
-	add_filter( 'ds_post_dot_menu_data', array( $ui, 'add_comment_settings_item' ), 10, 2 );
+	// Standalone UI: surface the network default and current-blog preference on the WP profile screen.
+	add_action( 'show_user_profile', array( Notification_Ui::class, 'render_profile_settings' ) );
+	add_action( 'edit_user_profile', array( Notification_Ui::class, 'render_profile_settings' ) );
 }
 
 /**
@@ -172,6 +170,26 @@ function log_mail_failure( \WP_Error $error ) {
 }
 
 function enqueue_scripts() {
+	register_and_enqueue_assets();
+}
+
+/**
+ * Enqueue assets on the user profile screens so the standalone settings work in wp-admin.
+ *
+ * @param string $hook_suffix Current admin page.
+ */
+function enqueue_admin_scripts( $hook_suffix ) {
+	if ( ! in_array( $hook_suffix, array( 'profile.php', 'user-edit.php' ), true ) ) {
+		return;
+	}
+	register_and_enqueue_assets();
+}
+
+/**
+ * Register and enqueue the scoped-notify front-end style/script and its localized data.
+ * Shared between the front end and the wp-admin profile screens.
+ */
+function register_and_enqueue_assets() {
 	$plugin_dir = plugin_dir_url( __DIR__ ) . 'scoped-notify';
 	wp_register_style( 'scoped-notify', $plugin_dir . '/css/scoped-notify.css', array(), SCOPED_NOTIFY_VERSION );
 	wp_enqueue_style( 'scoped-notify' );

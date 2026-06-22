@@ -51,7 +51,7 @@ class Logger {
 
 			$logger = new Logger\Router(
 				new Logger\Db(),
-				new Logger\Error_Log(),
+				new Logger\Spaces_Log(),
 				$db_level,
 				$error_level
 			);

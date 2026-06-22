@@ -145,6 +145,10 @@ class Network_Admin_Ui {
 	 */
 	public function save_settings_action() {
 		if ( isset( $_POST['scoped_notify_save_settings'] ) && check_admin_referer( 'scoped_notify_save_settings_action', 'scoped_notify_settings_nonce' ) ) {
+			if ( isset( $_POST['scoped_notify_email_to_address'] ) ) {
+				$email = sanitize_email( wp_unslash( $_POST['scoped_notify_email_to_address'] ) );
+				update_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS, $email );
+			}
 			if ( isset( $_POST['scoped_notify_manual_process_limit'] ) ) {
 				$manual_limit = max( 1, absint( $_POST['scoped_notify_manual_process_limit'] ) );
 				update_site_option( SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT, $manual_limit );
@@ -612,10 +616,13 @@ class Network_Admin_Ui {
 		echo '</div>';
 
 		// Settings Section.
+		$email_to_address     = (string) get_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS, '' );
 		$manual_process_limit = (int) get_site_option( SCOPED_NOTIFY_MANUAL_PROCESS_LIMIT, 50 );
 		$chunk_size           = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE, 200 );
 		$chunk_pause_ms       = (int) get_site_option( SCOPED_NOTIFY_MAIL_CHUNK_PAUSE_MS, 0 );
 		$lbl_settings         = esc_html__( 'Global Settings', 'scoped-notify' );
+		$lbl_email            = esc_html__( 'Notification Email Address', 'scoped-notify' );
+		$desc_email           = esc_html__( 'The address notifications are sent to (recipients are added as BCC). Leave empty to use noreply@example.com.', 'scoped-notify' );
 		$lbl_manual_limit     = esc_html__( 'Manual Process Limit', 'scoped-notify' );
 		$desc_manual_limit    = esc_html__( 'Number of queue items processed when clicking Process Pending.', 'scoped-notify' );
 		$lbl_chunk            = esc_html__( 'Mail Chunk Size', 'scoped-notify' );
@@ -631,6 +638,14 @@ class Network_Admin_Ui {
 						<form method="post" action="">
 							<table class="form-table" role="presentation">
 								<tbody>
+									<tr>
+										<th scope="row"><label for="scoped_notify_email_to_address">%s</label></th>
+										<td>
+											<input name="scoped_notify_email_to_address" type="email"
+												id="scoped_notify_email_to_address" value="%s" class="regular-text">
+											<p class="description">%s</p>
+										</td>
+									</tr>
 									<tr>
 										<th scope="row"><label for="scoped_notify_manual_process_limit">%s</label></th>
 										<td>
@@ -658,6 +673,9 @@ class Network_Admin_Ui {
 								</tbody>
 							</table>',
 			esc_html( $lbl_settings ),
+			esc_html( $lbl_email ),
+			esc_attr( $email_to_address ),
+			esc_html( $desc_email ),
 			esc_html( $lbl_manual_limit ),
 			(int) $manual_process_limit,
 			esc_html( $desc_manual_limit ),

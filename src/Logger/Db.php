@@ -21,14 +21,16 @@ class Db extends AbstractLogger {
 	private $log_level_threshold = LogLevel::ERROR;
 
 	/**
-	 * Fallback PSR logger that writes to PHP error_log.
+	 * Fallback PSR logger used when the DB write path is unavailable.
 	 *
-	 * @var Error_Log
+	 * Routes through spaces-core's spaces_log() when present, otherwise PHP error_log.
+	 *
+	 * @var Spaces_Log
 	 */
-	private Error_Log $fallback;
+	private Spaces_Log $fallback;
 
 	public function __construct() {
-		$this->fallback = new Error_Log();
+		$this->fallback = new Spaces_Log();
 	}
 
 	/**
@@ -105,7 +107,7 @@ class Db extends AbstractLogger {
 			}
 		}
 
-		// Always log to the PHP error log as before.
+		// Always mirror to the secondary channel (spaces_log when available, else error_log).
 		$this->fallback->log( $level, $message, $context );
 	}
 

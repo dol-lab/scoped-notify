@@ -854,8 +854,11 @@ class Notification_Processor {
 	}
 
 	public function get_to_email() {
-		/** @todo: make this a plugin-standalone value. */
-		return get_site_option( 'spaces_mail_from', 'noreply@example.com' );
+		$to = (string) get_site_option( SCOPED_NOTIFY_EMAIL_TO_ADDRESS, '' );
+		if ( '' === $to ) {
+			$to = 'noreply@example.com';
+		}
+		return (string) apply_filters( 'scoped_notify_to_email', $to );
 	}
 
 	public function get_reply_to() {
