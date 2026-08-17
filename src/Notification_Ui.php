@@ -47,7 +47,7 @@ class Notification_Ui {
 		$blog_label      = sprintf( esc_html__( 'This site (%s)', 'scoped-notify' ), esc_html( $blog_name ) );
 		$network_options = self::get_network_option_selector( $user->ID );
 
-		echo '<h2>' . $title . '</h2>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<h2 data-added-by="scoped-notify">' . $title . '</h2>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo "<table class='form-table' role='presentation'><tbody>";
 		echo "<tr><th scope='row'>$network_label</th><td>$network_options</td></tr>"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		if ( $is_blog_member ) {
@@ -193,37 +193,15 @@ class Notification_Ui {
 
 
 	/**
-	 * html for comment toggle switch
-	 * @param int $blog_id
-	 * @param int $post_id
-	 * @return string   html with toggle
+	 * What a per-post comment switch says, wherever it is drawn.
+	 *
+	 * There is no markup for it here: a theme that offers the switch draws it
+	 * itself and saves through `ScopedNotify.save()` (see js/scoped-notify.js).
+	 * This is only the wording, so it stays translated in one place.
+	 *
+	 * @return string
 	 */
-	public static function get_comment_toggle( int $blog_id, int $post_id ) {
-		$current_setting = User_Preferences::get_post_toggle_state( wp_get_current_user()->ID, $blog_id, $post_id );
-		$scope           = Scope::Post->value;
-		$toggle_id       = uniqid( 'scoped-notify-toggle-', true );
-		$label           = esc_html__( 'Notify me', 'scoped-notify' );
-		$checked         = $current_setting ? 'checked=checked' : '';
-
-		return "
-			<label class='icon-left label-wrapper' for='$toggle_id'>
-				<i class='fa fa-envelope' aria-hidden='true'></i>
-				<span>$label</span>
-				<div class='switch small success' title=''>
-					<input
-						class='switch-input js-scoped-notify-comment-toggle'
-						id='$toggle_id'
-						data-scope='$scope'
-						data-blog-id='$blog_id'
-						data-post-id='$post_id'
-						type='checkbox'
-						$checked
-					>
-					<label class='switch-paddle' for='$toggle_id'>
-						<span class='show-for-sr'>$label</span>
-					</label>
-				</div>
-			</label>
-		";
+	public static function comment_toggle_label(): string {
+		return __( 'Notify me', 'scoped-notify' );
 	}
 }

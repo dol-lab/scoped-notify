@@ -131,14 +131,21 @@ const initializeScopedNotify = () => {
 			sendScopedNotifyRequest({ scope, blogId, postId, value }, shouldReload, event.currentTarget);
 		});
 	});
-
-	// Listener for individual comment notification toggles (checkboxes).
-	const toggles = document.querySelectorAll(".js-scoped-notify-comment-toggle");
-	toggles.forEach((toggle) => {
-		toggle.addEventListener("change", (event) => {
-			const { scope, blogId, postId } = event.target.dataset;
-			const value = event.target.checked ? "activate-notifications" : "deactivate-notifications";
-			sendScopedNotifyRequest({ scope, blogId, postId, value }, false, event.currentTarget);
-		});
-	});
 };
+
+/**
+ * Saving a setting, for controls this plugin does not draw itself.
+ *
+ * The radiogroups above are found in the page; anything else (a theme's own
+ * switch, a control built after load) says so through here:
+ *
+ *     ScopedNotify.save( { scope: 'post', blogId, postId, value }, { element } );
+ *
+ * @param {Object}      settings          scope, blogId, postId, value.
+ * @param {Object}      [options]         Options.
+ * @param {boolean}     [options.reload]  True to reload the page once saved.
+ * @param {HTMLElement} [options.element] What was used, to anchor a callout on.
+ * @return {Promise<void>} Resolves when the request has been handled.
+ */
+(window.ScopedNotify ??= {}).save = (settings, { reload = false, element = null } = {}) =>
+	sendScopedNotifyRequest(settings, reload, element);

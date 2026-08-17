@@ -52,6 +52,69 @@ class Scoped_Notify_Notification_Processor_Test extends WP_UnitTestCase {
 		parent::tearDown();
 		delete_site_option( SCOPED_NOTIFY_MAIL_CHUNK_SIZE );
 		remove_all_filters( 'scoped_notify_third_party_send_mail_notification' );
+		remove_all_filters( 'scoped_notify_send_recipients' );
+	}
+
+	public function test_send_recipients_filter_excludes_users_before_send() {
+		global $wpdb;
+
+		$user_ids = $this->factory()->user->create_many( 3 );
+		$post_id  = $this->factory()->post->create();
+
+		// Clear queue polluted by the hook on post creation.
+		$wpdb->query( 'TRUNCATE TABLE ' . SCOPED_NOTIFY_TABLE_QUEUE );
+
+		$blog_id = get_current_blog_id();
+		foreach ( $user_ids as $uid ) {
+			$wpdb->insert(
+				SCOPED_NOTIFY_TABLE_QUEUE,
+				array(
+					'blog_id'       => $blog_id,
+					'user_id'       => $uid,
+					'object_id'     => $post_id,
+					'object_type'   => 'post',
+					'trigger_id'    => 1,
+					'status'        => 'pending',
+					'created_at'    => current_time( 'mysql' ),
+					'reason'        => 'new_post',
+					'schedule_type' => 'immediate',
+				)
+			);
+		}
+
+		// Stand in for an integration (e.g. spaces-core) that drops a flagged account:
+		// the middle user must not be mailed.
+		$excluded = (int) $user_ids[1];
+		add_filter(
+			'scoped_notify_send_recipients',
+			static fn( $users ) => array_values(
+				array_filter( $users, static fn( $u ) => (int) $u->ID !== $excluded )
+			)
+		);
+
+		$mailed = array();
+		add_filter(
+			'scoped_notify_third_party_send_mail_notification',
+			function ( $sent, $chunk ) use ( &$mailed ) {
+				foreach ( $chunk as $u ) {
+					$mailed[] = (int) $u->ID;
+				}
+				return true;
+			},
+			10,
+			2
+		);
+
+		$this->processor->mock_current_time = time();
+		$processed                          = $this->processor->process_queue( 10 );
+
+		// Only the two active users are mailed and counted as processed.
+		$this->assertEqualsCanonicalizing( array( (int) $user_ids[0], (int) $user_ids[2] ), $mailed );
+		$this->assertEquals( 2, $processed );
+
+		// The excluded user's row is terminal (orphaned), never left pending for a retry.
+		$this->assertEquals( 'orphaned', $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM ' . SCOPED_NOTIFY_TABLE_QUEUE . ' WHERE user_id = %d', $excluded ) ) );
+		$this->assertEquals( 0, $wpdb->get_var( 'SELECT COUNT(*) FROM ' . SCOPED_NOTIFY_TABLE_QUEUE . " WHERE status = 'pending'" ) );
 	}
 
 	public function test_user_chunking_logic() {

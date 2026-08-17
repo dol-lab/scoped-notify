@@ -19,7 +19,7 @@ namespace Scoped_Notify;
 defined( 'ABSPATH' ) || exit;
 
 // Define constants
-define( 'SCOPED_NOTIFY_VERSION', '0.3.1' ); // Incremented version to trigger DB update
+define( 'SCOPED_NOTIFY_VERSION', '0.4.0' ); // Incremented version to trigger DB update
 define( 'SCOPED_NOTIFY_PLUGIN_FILE', __FILE__ );
 define( 'SCOPED_NOTIFY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOPED_NOTIFY_DB_VERSION_OPTION', 'scoped_notify_db_version' );
@@ -194,7 +194,9 @@ function register_and_enqueue_assets() {
 	wp_register_style( 'scoped-notify', $plugin_dir . '/css/scoped-notify.css', array(), SCOPED_NOTIFY_VERSION );
 	wp_enqueue_style( 'scoped-notify' );
 
-	wp_register_script( 'scoped-notify', $plugin_dir . '/js/scoped-notify.js', array( 'jquery' ), '250902', false );
+	// Controls this plugin does not draw itself save through ScopedNotify.save(),
+	// so an integration only has to depend on this handle (see the js).
+	wp_register_script( 'scoped-notify', $plugin_dir . '/js/scoped-notify.js', array(), SCOPED_NOTIFY_VERSION, false );
 
 	wp_localize_script(
 		'scoped-notify',

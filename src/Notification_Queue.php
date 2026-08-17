@@ -243,6 +243,121 @@ class Notification_Queue {
 	}
 
 	/**
+	 * Queues notifications for caller-resolved recipients, without any post/comment assumptions.
+	 *
+	 * Intended for stream-shaped sources (chat, system alerts): the caller resolves recipients,
+	 * decides the send time, and may pass a collapse key so a burst of events keeps a single
+	 * pending row per user (first event wins; the anchored send time preserves the grace window).
+	 *
+	 * @param int[]       $user_ids      Recipient user IDs (already resolved and filtered).
+	 * @param string      $object_type   Object type (resolved later via 'scoped_notify_get_notification_object' unless post/comment).
+	 * @param int         $object_id     Object ID.
+	 * @param int         $trigger_id    Trigger ID (must exist in the triggers table).
+	 * @param string      $reason        Reason for the notification, e.g. 'chat-unread'.
+	 * @param int         $blog_id       Blog ID the event belongs to (0 for network-global objects).
+	 * @param string|null $send_after    UTC MySQL datetime before which the row must not be sent; null = immediately.
+	 * @param string|null $collapse_key  Dedup key: while a pending row with the same (user_id, collapse_key) exists, no new row is inserted.
+	 * @param array       $meta          Optional additional metadata.
+	 * @param string      $schedule_type Informational schedule type stored on the row. Default 'immediate'.
+	 * @return int Number of notifications inserted (collapsed duplicates are not counted).
+	 */
+	public function queue_direct( array $user_ids, string $object_type, int $object_id, int $trigger_id, string $reason, int $blog_id, ?string $send_after = null, ?string $collapse_key = null, array $meta = array(), string $schedule_type = 'immediate' ): int {
+		$logger = self::logger();
+
+		$user_ids = array_values( array_unique( array_map( 'intval', $user_ids ) ) );
+		if ( empty( $user_ids ) ) {
+			return 0;
+		}
+
+		if ( null !== $collapse_key && '' !== $collapse_key ) {
+			$user_ids_placeholder = implode( ',', array_fill( 0, count( $user_ids ), '%d' ) );
+			$existing             = $this->wpdb->get_col(
+				$this->wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+					"SELECT user_id FROM {$this->notifications_table_name}
+					 WHERE collapse_key = %s AND status = 'pending' AND user_id IN ({$user_ids_placeholder})",
+					array_merge( array( $collapse_key ), $user_ids )
+				)
+			);
+			if ( ! empty( $existing ) ) {
+				$user_ids = array_values( array_diff( $user_ids, array_map( 'intval', $existing ) ) );
+			}
+			if ( empty( $user_ids ) ) {
+				$logger->debug( "All recipients already have a pending row for collapse_key '{$collapse_key}'." );
+				return 0;
+			}
+		}
+
+		$current_time            = \current_time( 'mysql', true );
+		$notifications_to_insert = array();
+		foreach ( $user_ids as $user_id ) {
+			$notifications_to_insert[] = array(
+				'user_id'             => $user_id,
+				'trigger_id'          => $trigger_id,
+				'blog_id'             => $blog_id,
+				'object_type'         => $object_type,
+				'object_id'           => $object_id,
+				'reason'              => $reason,
+				'collapse_key'        => $collapse_key,
+				'schedule_type'       => $schedule_type,
+				'status'              => 'pending',
+				'scheduled_send_time' => $send_after,
+				'meta'                => $meta,
+				'created_at'          => $current_time,
+			);
+		}
+
+		$inserted = $this->bulk_insert_notifications( $notifications_to_insert );
+
+		$logger->info(
+			"Directly queued {$inserted} notifications.",
+			array(
+				'object_type'  => $object_type,
+				'object_id'    => $object_id,
+				'trigger_id'   => $trigger_id,
+				'reason'       => $reason,
+				'blog_id'      => $blog_id,
+				'collapse_key' => $collapse_key,
+				'send_after'   => $send_after,
+			)
+		);
+
+		return $inserted;
+	}
+
+	/**
+	 * Deletes a user's pending queue rows for a collapse key (e.g. when the user
+	 * caught up on the underlying stream before the notification was sent).
+	 *
+	 * @param int    $user_id      User ID.
+	 * @param string $collapse_key Collapse key the rows were queued with.
+	 * @return int Number of deleted rows.
+	 */
+	public function cancel_pending( int $user_id, string $collapse_key ): int {
+		$result = $this->wpdb->query(
+			$this->wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				"DELETE FROM {$this->notifications_table_name}
+				 WHERE user_id = %d AND collapse_key = %s AND status = 'pending'",
+				$user_id,
+				$collapse_key
+			)
+		);
+
+		if ( false === $result ) {
+			self::logger()->error(
+				'Failed to cancel pending notifications.',
+				array(
+					'user_id'      => $user_id,
+					'collapse_key' => $collapse_key,
+					'error'        => $this->wpdb->last_error,
+				)
+			);
+			return 0;
+		}
+
+		return (int) $result;
+	}
+
+	/**
 	 * Inserts multiple notification records into the database in a single query.
 	 *
 	 * @param array $notifications Array of associative arrays containing notification details.

@@ -127,6 +127,24 @@ define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_po
   notifications for everything (post & comments), only posts, nothing (this leaves comments-only, which does not make sense).
 - ✅ You can see on every post, if you receive comment-notifications for it.
 
+#### Controls the plugin does not draw
+
+The plugin ships the network and blog radiogroups (profile screen, plus
+`Notification_Ui::get_blog_option_selector()` for a theme). A theme or an
+integration that draws its own control (a per-post switch, for example) saves
+through the same REST call:
+
+```js
+// Enqueue with 'scoped-notify' as a dependency.
+ScopedNotify.save(
+	{ scope: 'post', blogId, postId, value: 'activate-notifications' },
+	{ element } // Optional: anchors the conflict/error callout, `reload: true` reloads the page.
+);
+```
+
+`Notification_Ui::comment_toggle_label()` provides the wording for such a
+switch, so it stays translated here.
+
 ## Questions
 - [ ] which schedule-options are available?
 	- daily. select one:(7, 12, 17, 22)

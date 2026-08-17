@@ -40,6 +40,7 @@ return array(
 			'object_type'         => 'varchar(20) NOT NULL', // 'post', 'comment'
 			'trigger_id'          => 'bigint(20) unsigned NOT NULL',
 			'reason'              => 'varchar(50) NOT NULL', // 'subscribed', 'mentioned', 'author' etc.
+			'collapse_key'        => 'varchar(64) NULL DEFAULT NULL', // Dedup key for stream sources: one pending row per (user_id, collapse_key).
 			'schedule_type'       => 'varchar(20) NOT NULL', // 'immediate', 'daily', 'weekly'
 			'scheduled_send_time' => 'datetime NULL DEFAULT NULL',
 			'status'              => "varchar(20) NOT NULL DEFAULT 'pending'", // 'pending', 'sending', 'sent', 'failed'
@@ -53,8 +54,14 @@ return array(
             KEY `user_status_schedule` (`user_id`, `status`, `scheduled_send_time`),
             KEY `status_schedule` (`status`, `scheduled_send_time`),
             KEY `object_info` (`object_type`, `object_id`),
+            KEY `user_collapse` (`user_id`, `collapse_key`),
             FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
+		'updates' => array(
+			'0.4.0' => 'ALTER TABLE {name}
+				ADD COLUMN `collapse_key` varchar(64) NULL DEFAULT NULL AFTER `reason`,
+				ADD KEY `user_collapse` (`user_id`, `collapse_key`)',
+		),
 	),
 	array(
 		/**

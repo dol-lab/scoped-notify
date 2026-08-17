@@ -208,6 +208,31 @@ class Notification_Processor {
 						);
 					}
 
+					/**
+					 * Filters the resolved recipients of a queued notification right before it is
+					 * sent, so an integration can drop users who must not be notified at send time —
+					 * e.g. accounts that were scheduled for deletion (deactivated) after the row was
+					 * queued. These users still exist in wp_users (so they are not "missing" above),
+					 * which is why the earlier resolve-time recipient filters cannot catch them.
+					 *
+					 * Return a subset of the given WP_User objects. Anyone removed is marked
+					 * 'orphaned' for this item and never retried.
+					 *
+					 * @param \WP_User[]        $users The resolved recipients (fields: ID, user_email, display_name).
+					 * @param Notification_Item $item  The notification being processed.
+					 */
+					$sendable     = apply_filters( 'scoped_notify_send_recipients', $users, $item );
+					$sendable_ids = array_map( fn( $u ) => (int) $u->ID, $sendable );
+					$excluded_ids = array_values( array_diff( $fetched_user_ids, $sendable_ids ) );
+					if ( ! empty( $excluded_ids ) ) {
+						$this->bulk_update_notification_status( $item, $excluded_ids, 'orphaned', false );
+						$logger->info(
+							'Excluded recipients before send (filtered out by scoped_notify_send_recipients)',
+							array( 'user_ids' => $excluded_ids )
+						);
+					}
+					$users = $sendable;
+
 					// Only continue processing with users that actually exist
 					if ( empty( $users ) ) {
 						$logger->debug( 'No valid users found in chunk after filtering missing ones. Skipping processing for this chunk.' );
