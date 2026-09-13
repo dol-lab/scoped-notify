@@ -131,4 +131,52 @@ class Test_Notification_Resolver extends WP_UnitTestCase {
 
 		$this->assertEmpty( $recipients );
 	}
+
+	/**
+	 * Test that scoped_notify_resolve_recipients has the last word, including over mentions.
+	 */
+	public function test_resolve_filter_runs_after_mentions() {
+		$post_id   = $this->factory()->post->create( array( 'post_author' => 1 ) );
+		$post      = get_post( $post_id );
+		$member    = $this->factory()->user->create();
+		$mentioned = $this->factory()->user->create();
+
+		$this->resolver->method( 'get_trigger_id' )->willReturn( 1 );
+		$this->resolver->method( 'get_blog_member_ids' )->willReturn( array( $member ) );
+		$this->resolver->method( 'get_mentioned_user_ids' )->willReturn( array( $mentioned ) );
+
+		$seen     = null;
+		$callback = function ( $recipient_ids, $object, $channel, $trigger_id ) use ( &$seen, $mentioned ) {
+			$seen = compact( 'recipient_ids', 'object', 'channel', 'trigger_id' );
+			return array_values( array_diff( $recipient_ids, array( $mentioned ) ) );
+		};
+		add_filter( 'scoped_notify_resolve_recipients', $callback, 10, 4 );
+
+		$recipients = $this->resolver->get_recipients( $post, 'mail', 42 );
+
+		remove_filter( 'scoped_notify_resolve_recipients', $callback, 10 );
+
+		// The filter sees the mentioned user, so it can keep them out.
+		$this->assertContains( $mentioned, $seen['recipient_ids'] );
+		$this->assertSame( $post->ID, $seen['object']->ID );
+		$this->assertSame( 'mail', $seen['channel'] );
+		$this->assertSame( 42, $seen['trigger_id'] );
+
+		$this->assertContains( $member, $recipients );
+		$this->assertNotContains( $mentioned, $recipients );
+	}
+
+	/**
+	 * Test that an object type the resolver does not handle can be filled in by the filter.
+	 */
+	public function test_resolve_filter_can_add_unknown_object_types() {
+		$callback = fn( $recipient_ids ) => array( 7 );
+		add_filter( 'scoped_notify_resolve_recipients', $callback );
+
+		$recipients = $this->resolver->get_recipients( new stdClass(), 'mail', 42 );
+
+		remove_filter( 'scoped_notify_resolve_recipients', $callback );
+
+		$this->assertSame( array( 7 ), $recipients );
+	}
 }

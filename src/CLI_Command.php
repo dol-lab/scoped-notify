@@ -112,8 +112,16 @@ class CLI_Command {
 			$scheduler     = new Notification_Scheduler( $wpdb ); // Instantiate scheduler
 			$queue_manager = new Notification_Queue( $resolver, $scheduler, $wpdb ); // Pass scheduler
 
-			// Resolve recipients (primarily for logging/dry-run info in this command)
-			$recipient_ids = $resolver->get_recipients_for_post( $post, $channel );
+			// The trigger has to be known before resolving, so that a dry run resolves
+			// recipients exactly the way queueing does.
+			$trigger_key = 'post-' . $post->post_type;
+			$trigger_id  = $resolver->get_trigger_id( $trigger_key, $channel );
+
+			if ( empty( $trigger_id ) ) {
+				\WP_CLI::error( "Could not find an active trigger for key '{$trigger_key}' and channel '{$channel}'. No recipients resolved, no notifications queued." ); // Use FQN
+			}
+
+			$recipient_ids = $resolver->get_recipients( $post, $channel, $trigger_id );
 
 			if ( empty( $recipient_ids ) ) {
 				\WP_CLI::success( "No recipients found based on current settings for Post ID {$post_id}. No item queued." ); // Use FQN
@@ -123,38 +131,23 @@ class CLI_Command {
 				if ( $dry_run ) {
 					\WP_CLI::success( "[Dry Run] Would queue notifications for Post ID {$post_id}, Channel '{$channel}', Reason '{$reason}'." ); // Use FQN
 				} else {
-					// Find the trigger_id first
-					$trigger_key = 'post-' . $post->post_type;
-					$trigger_id  = $wpdb->get_var(
-						$wpdb->prepare(
-							'SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1',
-							SCOPED_NOTIFY_TABLE_TRIGGERS,
-							$trigger_key,
-							$channel
-						)
+					// Queue the event using the new method
+					$queued_count = $queue_manager->queue_event_notifications(
+						'post',
+						$post->ID,
+						$reason,
+						$target_blog_id, // Pass the determined blog ID
+						array(), // Meta
+						$trigger_id
 					);
 
-					if ( empty( $trigger_id ) ) {
-						\WP_CLI::error( "Could not find an active trigger for key '{$trigger_key}' and channel '{$channel}'. No notifications queued." ); // Use FQN
+					if ( $queued_count > 0 ) {
+						\WP_CLI::success( "Successfully queued {$queued_count} notifications for Post ID {$post_id}, Channel '{$channel}', Reason '{$reason}' (Trigger ID: {$trigger_id})." ); // Use FQN
+					} elseif ( $queued_count === 0 ) {
+						\WP_CLI::warning( "Event processed, but 0 notifications were queued (likely no recipients found). Post ID {$post_id}, Trigger ID: {$trigger_id}." ); // Use FQN
 					} else {
-						// Queue the event using the new method
-						$queued_count = $queue_manager->queue_event_notifications(
-							'post',
-							$post->ID,
-							$reason,
-							$target_blog_id, // Pass the determined blog ID
-							array(), // Meta
-							(int) $trigger_id
-						);
-
-						if ( $queued_count > 0 ) {
-							\WP_CLI::success( "Successfully queued {$queued_count} notifications for Post ID {$post_id}, Channel '{$channel}', Reason '{$reason}' (Trigger ID: {$trigger_id})." ); // Use FQN
-						} elseif ( $queued_count === 0 ) {
-							\WP_CLI::warning( "Event processed, but 0 notifications were queued (likely no recipients found). Post ID {$post_id}, Trigger ID: {$trigger_id}." ); // Use FQN
-						} else {
-							// queue_event_notifications returns int, so negative shouldn't happen, but check logs if it does.
-							\WP_CLI::error( "Failed to queue notifications for Post ID {$post_id}. Check logs." ); // Use FQN
-						}
+						// queue_event_notifications returns int, so negative shouldn't happen, but check logs if it does.
+						\WP_CLI::error( "Failed to queue notifications for Post ID {$post_id}. Check logs." ); // Use FQN
 					}
 				}
 			}
@@ -258,8 +251,16 @@ class CLI_Command {
 			$scheduler     = new Notification_Scheduler( $wpdb ); // Instantiate scheduler
 			$queue_manager = new Notification_Queue( $resolver, $scheduler, $wpdb ); // Pass scheduler
 
-			// Resolve recipients (primarily for logging/dry-run info)
-			$recipient_ids = $resolver->get_recipients_for_comment( $comment, $post, $channel );
+			// The trigger has to be known before resolving, so that a dry run resolves
+			// recipients exactly the way queueing does.
+			$trigger_key = 'comment-' . $post->post_type;
+			$trigger_id  = $resolver->get_trigger_id( $trigger_key, $channel );
+
+			if ( empty( $trigger_id ) ) {
+				\WP_CLI::error( "Could not find an active trigger for key '{$trigger_key}' and channel '{$channel}'. No recipients resolved, no notifications queued." ); // Use FQN
+			}
+
+			$recipient_ids = $resolver->get_recipients( $comment, $channel, $trigger_id );
 
 			if ( empty( $recipient_ids ) ) {
 				\WP_CLI::success( "No recipients found based on current settings for Comment ID {$comment_id}. No item queued." ); // Use FQN
@@ -269,37 +270,22 @@ class CLI_Command {
 				if ( $dry_run ) {
 					\WP_CLI::success( "[Dry Run] Would queue notifications for Comment ID {$comment_id}, Channel '{$channel}', Reason '{$reason}'." ); // Use FQN
 				} else {
-					// Find the trigger_id first
-					$trigger_key = 'comment-' . $post->post_type;
-					$trigger_id  = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-						$wpdb->prepare(
-							'SELECT trigger_id FROM %i WHERE trigger_key = %s AND channel = %s LIMIT 1',
-							SCOPED_NOTIFY_TABLE_TRIGGERS,
-							$trigger_key,
-							$channel
-						)
+					// Queue the event using the new method
+					$queued_count = $queue_manager->queue_event_notifications(
+						'comment',
+						(int) $comment->comment_ID,
+						$reason,
+						$target_blog_id, // Pass the determined blog ID
+						array(), // Meta
+						$trigger_id
 					);
 
-					if ( empty( $trigger_id ) ) {
-						\WP_CLI::error( "Could not find an active trigger for key '{$trigger_key}' and channel '{$channel}'. No notifications queued." ); // Use FQN
+					if ( $queued_count > 0 ) {
+						\WP_CLI::success( "Successfully queued {$queued_count} notifications for Comment ID {$comment_id}, Channel '{$channel}', Reason '{$reason}' (Trigger ID: {$trigger_id})." ); // Use FQN
+					} elseif ( $queued_count === 0 ) {
+						\WP_CLI::warning( "Event processed, but 0 notifications were queued (likely no recipients found). Comment ID {$comment_id}, Trigger ID: {$trigger_id}." ); // Use FQN
 					} else {
-						// Queue the event using the new method
-						$queued_count = $queue_manager->queue_event_notifications(
-							'comment',
-							$comment->comment_ID,
-							$reason,
-							$target_blog_id, // Pass the determined blog ID
-							array(), // Meta
-							(int) $trigger_id
-						);
-
-						if ( $queued_count > 0 ) {
-							\WP_CLI::success( "Successfully queued {$queued_count} notifications for Comment ID {$comment_id}, Channel '{$channel}', Reason '{$reason}' (Trigger ID: {$trigger_id})." ); // Use FQN
-						} elseif ( $queued_count === 0 ) {
-							\WP_CLI::warning( "Event processed, but 0 notifications were queued (likely no recipients found). Comment ID {$comment_id}, Trigger ID: {$trigger_id}." ); // Use FQN
-						} else {
-							\WP_CLI::error( "Failed to queue notifications for Comment ID {$comment_id}. Check logs." ); // Use FQN
-						}
+						\WP_CLI::error( "Failed to queue notifications for Comment ID {$comment_id}. Check logs." ); // Use FQN
 					}
 				}
 			}

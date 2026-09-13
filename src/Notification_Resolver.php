@@ -39,7 +39,66 @@ class Notification_Resolver {
 	}
 
 	/**
+	 * Get the user IDs who should receive a notification for a triggering object.
+	 *
+	 * This is the single entry point for recipient resolution: it dispatches to the
+	 * object specific resolvers and applies `scoped_notify_resolve_recipients` to their
+	 * result. Callers must not resolve recipients by calling the object specific methods
+	 * directly, or the filter is bypassed.
+	 *
+	 * @param object   $trigger_object The triggering object (WP_Post or WP_Comment).
+	 * @param string   $channel        The notification channel (default 'mail').
+	 * @param int|null $trigger_id     The ID of the trigger definition, passed on to the filter.
+	 * @return array List of user IDs. Returns empty array on error.
+	 * @throws \Exception If the parent post of a comment cannot be found.
+	 */
+	public function get_recipients( object $trigger_object, string $channel = 'mail', ?int $trigger_id = null ): array {
+		$recipient_ids = array();
+
+		if ( $trigger_object instanceof WP_Post ) {
+			$recipient_ids = $this->get_recipients_for_post( $trigger_object, $channel );
+		} elseif ( $trigger_object instanceof WP_Comment ) {
+			$post = \get_post( (int) $trigger_object->comment_post_ID );
+			if ( ! $post ) {
+				throw new \Exception( \esc_html( "Could not find parent post for comment ID {$trigger_object->comment_ID}." ) );
+			}
+			$recipient_ids = $this->get_recipients_for_comment( $trigger_object, $post, $channel );
+		}
+
+		$recipient_ids = self::normalize_ids( $recipient_ids );
+
+		/**
+		 * Filters the recipients of a notification event.
+		 *
+		 * This is the final say on who gets notified: it runs after mute settings have been
+		 * evaluated and after users named by an @mention have been merged in. It is also the
+		 * only way to resolve recipients for object types this plugin does not handle itself.
+		 *
+		 * @param array    $recipient_ids  The user IDs resolved so far.
+		 * @param object   $trigger_object The triggering object (WP_Post or WP_Comment).
+		 * @param string   $channel        The notification channel.
+		 * @param int|null $trigger_id     The ID of the trigger definition.
+		 */
+		$recipient_ids = \apply_filters( 'scoped_notify_resolve_recipients', $recipient_ids, $trigger_object, $channel, $trigger_id );
+
+		return self::normalize_ids( $recipient_ids );
+	}
+
+	/**
+	 * Casts a recipient list to a list of unique integer user IDs with sequential keys.
+	 *
+	 * @param array $user_ids The user IDs to normalize.
+	 * @return array
+	 */
+	private static function normalize_ids( array $user_ids ): array {
+		return array_values( array_unique( array_map( 'intval', $user_ids ) ) );
+	}
+
+	/**
 	 * Get the user IDs who should receive a notification for a specific post publication.
+	 *
+	 * Does not apply `scoped_notify_resolve_recipients` - call get_recipients() instead of
+	 * this method unless you deliberately want the unfiltered list.
 	 *
 	 * @param WP_Post $post    The post object.
 	 * @param string  $channel The notification channel (default 'mail').
@@ -189,7 +248,13 @@ class Notification_Resolver {
 			}
 		}
 
-		$recipient_ids_filtered = apply_filters( 'scoped_notify_filter_recipients', $recipient_ids, $post );
+		$recipient_ids_filtered = apply_filters_deprecated(
+			'scoped_notify_filter_recipients',
+			array( $recipient_ids, $post ),
+			'0.4',
+			'scoped_notify_resolve_recipients',
+			'It runs before mentioned users are merged in, so it cannot keep a user out of the queue.'
+		);
 
 		// Add mentioned users - they override mute settings.
 		$mentioned_user_ids  = $this->get_mentioned_user_ids( $post->post_content );
@@ -200,6 +265,9 @@ class Notification_Resolver {
 
 	/**
 	 * Get the user IDs who should receive a notification for a specific comment.
+	 *
+	 * Does not apply `scoped_notify_resolve_recipients` - call get_recipients() instead of
+	 * this method unless you deliberately want the unfiltered list.
 	 *
 	 * @param WP_Comment $comment The comment object.
 	 * @param WP_Post    $post    The parent post object of the comment.
@@ -338,7 +406,13 @@ class Notification_Resolver {
 			}
 		}
 
-		$recipient_ids_filtered = apply_filters( 'scoped_notify_filter_recipients', $recipient_ids, $comment );
+		$recipient_ids_filtered = apply_filters_deprecated(
+			'scoped_notify_filter_recipients',
+			array( $recipient_ids, $comment ),
+			'0.4',
+			'scoped_notify_resolve_recipients',
+			'It runs before mentioned users are merged in, so it cannot keep a user out of the queue.'
+		);
 
 		// Add mentioned users - they override mute settings.
 		$mentioned_user_ids  = $this->get_mentioned_user_ids( $comment->comment_content );

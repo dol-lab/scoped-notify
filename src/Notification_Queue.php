@@ -128,21 +128,11 @@ class Notification_Queue {
 				throw new \Exception( "Could not retrieve object {$object_type}:{$object_id} on blog {$blog_id}." );
 			}
 
-			// 3. Resolve Recipients using the Notification_Resolver based on object type
-			// Ensure we are still on the correct blog context for the resolver
-			$recipient_ids = array();
-			if ( $object instanceof \WP_Post ) {
-				$recipient_ids = $this->resolver->get_recipients_for_post( $object, $channel );
-			} elseif ( $object instanceof \WP_Comment ) {
-				$post = \get_post( $object->comment_post_ID );
-				if ( ! $post ) {
-					throw new \Exception( "Could not find parent post for comment ID {$object->comment_ID}." );
-				}
-				$recipient_ids = $this->resolver->get_recipients_for_comment( $object, $post, $channel );
-			}
-
-			// Allow extension for other object types or filtering recipients.
-			$recipient_ids = \apply_filters( 'scoped_notify_resolve_recipients', $recipient_ids, $object, $channel, $trigger_id );
+			// 3. Resolve Recipients using the Notification_Resolver.
+			// Ensure we are still on the correct blog context for the resolver.
+			// This applies scoped_notify_resolve_recipients, which is also where recipients
+			// for object types the resolver does not handle itself can be added.
+			$recipient_ids = $this->resolver->get_recipients( $object, $channel, $trigger_id );
 
 			if ( empty( $recipient_ids ) ) {
 				$logger->info(

@@ -88,6 +88,39 @@ define( 'SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS', 'scoped_notify_settings_po
 ```
 
 
+## Hooks
+
+### `scoped_notify_resolve_recipients`
+
+The one place to change who gets notified.
+
+```php
+add_filter( 'scoped_notify_resolve_recipients', function ( array $recipient_ids, object $object, string $channel, ?int $trigger_id ): array {
+	return $recipient_ids;
+}, 10, 4 );
+```
+
+Applied by `Notification_Resolver::get_recipients()` to the finished candidate list: after mute
+settings have been evaluated and after the users an `@mention` names have been merged in. Every
+caller resolves through that method — `Notification_Queue` before it inserts rows, and the CLI's
+`resolve-post` / `resolve-comment`, so a `--dry-run` prints the list that would actually be queued.
+
+`$object` is a `WP_Post` or a `WP_Comment`; for an object type the resolver does not handle, the
+list arrives empty and the filter is the only way to fill it.
+
+Mostly used to keep people out who may not read the object the notification is about. A mention is
+not a permission: it overrides mute settings, but it cannot override this filter.
+
+### `scoped_notify_filter_recipients` (deprecated since 0.4)
+
+Ran inside `get_recipients_for_post()` / `get_recipients_for_comment()`, *before* mentioned users
+were merged in — so it could not keep a mentioned user out of the queue, and it never ran for the
+queue's other object types. Use `scoped_notify_resolve_recipients`.
+
+### `scoped_notify_send_recipients`
+
+Applied in `Notification_Processor` to the users of one queue item, just before sending.
+
 ## Rules/Limits
 - ✅ if the ``*_settings_*`` tables are empty, all users receive notifications, if they are a member in a blog. being a member means having any capability in a blog (defined in global table ``wp_usermeta`` by default).
 - ✅ **Most specific rule wins**. Examples:

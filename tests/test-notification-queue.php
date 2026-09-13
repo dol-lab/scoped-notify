@@ -85,8 +85,8 @@ class Test_Notification_Queue extends WP_UnitTestCase {
 		$recipients = array( 10, 20, 30 );
 
 		$this->resolver->expects( $this->once() )
-			->method( 'get_recipients_for_post' )
-			->with( $this->isInstanceOf( \WP_Post::class ), 'mail' )
+			->method( 'get_recipients' )
+			->with( $this->isInstanceOf( \WP_Post::class ), 'mail', $trigger_id )
 			->willReturn( $recipients );
 
 		$this->scheduler->expects( $this->once() )
@@ -161,7 +161,7 @@ class Test_Notification_Queue extends WP_UnitTestCase {
 
 		// 2. Mock Resolver to return empty
 		$this->resolver->expects( $this->once() )
-			->method( 'get_recipients_for_post' )
+			->method( 'get_recipients' )
 			->willReturn( array() );
 
 		// 3. Execute
@@ -217,7 +217,7 @@ class Test_Notification_Queue extends WP_UnitTestCase {
 
 		// 2. Mock Resolver & Scheduler
 		// handle_new_post will eventually call queue_event_notifications
-		$this->resolver->method( 'get_recipients_for_post' )->willReturn( array( 1 ) );
+		$this->resolver->method( 'get_recipients' )->willReturn( array( 1 ) );
 		$this->scheduler->method( 'get_users_schedules' )->willReturn( array( 1 => 'immediate' ) );
 
 		// 3. Create Post and Trigger Logic
