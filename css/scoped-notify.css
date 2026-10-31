@@ -22,11 +22,6 @@ currently the following own classes exist:
 	margin-left: 0rem;
 }
 
-/* same font-size as .dropdown-pane */
-.scoped-notify-options .scoped-notify-radio-label {
-	font-size: .8rem;
-}
-
 /*
  * Visually-hidden helper. On the theme front end this comes from Foundation,
  * but the wp-admin profile screens (profile.php / user-edit.php) load this

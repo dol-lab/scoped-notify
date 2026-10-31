@@ -180,7 +180,7 @@ class Notification_Ui {
 								$checked
 							/>
 							<span>$label</span>
-							<span class='radio-label flex-spacer-left' aria-hidden='true'></span>
+							<span class='radio-label ml-auto' aria-hidden='true'></span>
 						</label>
 					</div>
 				</li>
