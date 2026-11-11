@@ -101,7 +101,14 @@ class User_Preferences {
 		// Comment trigger key includes the PARENT post type
 		$trigger_key = 'comment-' . $post_type;
 
-		$term_ids             = \wp_get_post_terms( $post->ID, \get_object_taxonomies( $post_type ), array( 'fields' => 'ids' ) );
+		// get_the_terms() reads the term cache a post query primed; wp_get_post_terms() always queries.
+		$term_ids = array();
+		foreach ( \get_object_taxonomies( $post_type ) as $taxonomy ) {
+			$terms = \get_the_terms( $post, $taxonomy );
+			if ( is_array( $terms ) ) {
+				array_push( $term_ids, ...\wp_list_pluck( $terms, 'term_id' ) );
+			}
+		}
 		$term_ids_placeholder = ! empty( $term_ids ) ? implode( ',', array_fill( 0, count( $term_ids ), '%d' ) ) : 'NULL';
 
 		// Prepare arguments for the query
