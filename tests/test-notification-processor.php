@@ -258,4 +258,18 @@ class Scoped_Notify_Notification_Processor_Test extends WP_UnitTestCase {
 		$this->assertEquals( 2, $pending_count, 'Remaining users should be pending.' );
 		$this->assertEquals( 0, $processing_count, 'No users should be left in processing.' );
 	}
+
+	/**
+	 * Links in a notification carry the channel they came through, before their fragment.
+	 */
+	public function test_links_carry_their_origin() {
+		$this->assertSame( 'https://example.org/a/?via=mail#comment-9', \Scoped_Notify\Notification_Processor::origin_link( 'https://example.org/a/#comment-9', 'mail' ) );
+
+		$post_id = self::factory()->post->create();
+		$item    = new \Scoped_Notify\Notification_Item( get_current_blog_id(), $post_id, 'post', 0, 'new_post' );
+		$format  = new ReflectionMethod( \Scoped_Notify\Notification_Processor::class, 'format_mail_message' );
+		$format->setAccessible( true );
+		$link = esc_url( add_query_arg( 'via', 'mail', get_permalink( $post_id ) ) );
+		$this->assertStringContainsString( "href=\"$link\"", $format->invoke( $this->processor, get_post( $post_id ), $item ) );
+	}
 }

@@ -121,6 +121,10 @@ queue's other object types. Use `scoped_notify_resolve_recipients`.
 
 Applied in `Notification_Processor` to the users of one queue item, just before sending.
 
+## Links carry their origin (`via=<channel>`)
+
+Every link to a post or comment in a notification goes through `Notification_Processor::origin_link( $url, $channel )`, which adds `via=mail` (or `via=push`, …) and keeps the rest of the link, `#comment-N` included. The site can then decide at click time where the reader lands (Spaces' defaultspace opens the post on the stream). Deciding at send time through a filter would not work for a theme: mails are rendered in cron after `switch_to_blog()`, where the main site's theme is loaded, not the Space's. Templates that build their own links (spaces-scoped-notify) call it too.
+
 ## Rules/Limits
 - ✅ if the ``*_settings_*`` tables are empty, all users receive notifications, if they are a member in a blog. being a member means having any capability in a blog (defined in global table ``wp_usermeta`` by default).
 - ✅ **Most specific rule wins**. Examples:

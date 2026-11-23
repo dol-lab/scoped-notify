@@ -1112,6 +1112,21 @@ class Notification_Processor {
 	}
 
 	/**
+	 * Mark a link a notification carries with the channel it came through (`via=mail`, `via=push`),
+	 * so the site can tell at click time where the reader comes from.
+	 *
+	 * The link itself stays as it is: notifications already sent keep working whatever the site
+	 * makes of the parameter.
+	 *
+	 * @param string $url     A permalink or comment link (`#comment-N` stays last).
+	 * @param string $channel The channel, e.g. 'mail'.
+	 * @return string The url with `via=<channel>`.
+	 */
+	public static function origin_link( string $url, string $channel ): string {
+		return \add_query_arg( 'via', $channel, $url );
+	}
+
+	/**
 	 * Formats the email message body (HTML) based on the user, object, and notification item.
 	 * Handles blog switching.
 	 *
@@ -1141,7 +1156,7 @@ class Notification_Processor {
 			$blog_name    = \get_bloginfo( 'name' );
 
 			if ( $trigger_obj instanceof \WP_Post ) {
-				$object_link  = \get_permalink( $trigger_obj->ID );
+				$object_link  = self::origin_link( \get_permalink( $trigger_obj->ID ), 'mail' );
 				$object_title = $trigger_obj->post_title;
 				switch ( $item->reason ) {
 					case 'new_post':
@@ -1161,7 +1176,7 @@ class Notification_Processor {
 						) . '</p>';
 				}
 			} elseif ( $trigger_obj instanceof \WP_Comment ) {
-				$object_link    = \get_comment_link( $trigger_obj );
+				$object_link    = self::origin_link( \get_comment_link( $trigger_obj ), 'mail' );
 				$post           = \get_post( $trigger_obj->comment_post_ID );
 				$post_title     = $post ? $post->post_title : \__( 'a post', 'scoped-notify' );
 				$commenter_name = $trigger_obj->comment_author;
