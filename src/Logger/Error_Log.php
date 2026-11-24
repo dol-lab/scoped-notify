@@ -5,7 +5,7 @@ use Psr\Log\LogLevel;
 use Psr\Log\AbstractLogger;
 
 /**
- * Logger that logs messages to the PHP error log.
+ * Logger that logs messages to the PHP error log, or to whoever listens to `scoped_notify_log`.
  *
  * Only logs messages with a level of ERROR or higher by default.
  */
@@ -70,14 +70,20 @@ class Error_Log extends AbstractLogger {
 		$log_threshold_priority = $level_priority[ $this->log_level_threshold ] ?? $level_priority[ LogLevel::ERROR ];
 
 		if ( $current_level_priority >= $log_threshold_priority ) {
-			$log_entry = sprintf(
-				'%s: %s %s',
-				strtoupper( $level ),
-				$message,
-				! empty( $context ) ? \wp_json_encode( $context ) : ''
-			);
+			$line = trim( $message . ' ' . ( ! empty( $context ) ? \wp_json_encode( $context ) : '' ) );
+			if ( \has_action( 'scoped_notify_log' ) ) {
+				/**
+				 * Fires for every log line that would go to the PHP error log, so a host with its own logger can take it.
+				 *
+				 * @param string $level   PSR-3 level, e.g. 'warning' or 'error'.
+				 * @param string $message The message, context appended as JSON.
+				 * @param string $source  Always 'scoped-notify'.
+				 */
+				\do_action( 'scoped_notify_log', $level, $line, 'scoped-notify' );
+				return;
+			}
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( trim( $log_entry ) );
+			error_log( strtoupper( $level ) . ': ' . $line );
 		}
 	}
 }

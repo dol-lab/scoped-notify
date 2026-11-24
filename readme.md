@@ -121,6 +121,10 @@ queue's other object types. Use `scoped_notify_resolve_recipients`.
 
 Applied in `Notification_Processor` to the users of one queue item, just before sending.
 
+### `scoped_notify_log`
+
+`( string $level, string $message, string $source )`, fired for every line at or above the error-log threshold (`SCOPED_NOTIFY_LOG_LEVEL_ERROR`, else `SCOPED_NOTIFY_LOG_LEVEL`). The message has the context appended as JSON. While something listens, these lines skip `error_log()`. The `scoped_notify_logs` table gets its lines either way (threshold `SCOPED_NOTIFY_LOG_LEVEL_DB`, default `warning`).
+
 ## Links carry their origin (`via=<channel>`)
 
 Every link to a post or comment in a notification goes through `Notification_Processor::origin_link( $url, $channel )`, which adds `via=mail` (or `via=push`, …) and keeps the rest of the link, `#comment-N` included. The site can then decide at click time where the reader lands (Spaces' defaultspace opens the post on the stream). Deciding at send time through a filter would not work for a theme: mails are rendered in cron after `switch_to_blog()`, where the main site's theme is loaded, not the Space's. Templates that build their own links (spaces-scoped-notify) call it too.

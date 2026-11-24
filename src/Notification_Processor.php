@@ -559,7 +559,7 @@ class Notification_Processor {
 
 		$sql = $this->wpdb->prepare( $sql, $prepare_args ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
-		$result = $this->wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$result = $this->query_with_retry( $sql );
 
 		if ( false === $result ) {
 			$logger->error(
@@ -577,58 +577,25 @@ class Notification_Processor {
 	}
 
 	/**
-	 * Updates the status of a notification item and optionally the sent_at timestamp.
-	 * If no user_id is given, update all entries for given item (blog_id, object_id, object_type, trigger_id).
-	 * If user_id is given, update only the item entry for this user.
+	 * Runs a write query, retrying when InnoDB picks it as a deadlock victim or a lock wait times out.
 	 *
-	 * @param Notification_Item $item           The notification item.
-	 * @param int|null          $user_id        The user ID - if given, update only the item entry for this user.
-	 * @param string            $status         The new status ('processing', 'sent', 'failed').
-	 * @param bool              $update_sent_at Whether to update the sent_at timestamp.
-	 * @return bool True on success, false on failure.
+	 * Both roll back only this statement (autocommit), so running it again is safe. A status update
+	 * that is lost leaves rows in 'processing', which reset_stuck_items() later turns back into
+	 * 'pending': the recipients would get the notification twice.
+	 *
+	 * @param string $sql      Prepared SQL.
+	 * @param int    $attempts Maximum number of attempts.
+	 * @return int|bool Result of wpdb::query(), false once all attempts failed.
 	 */
-	private function update_notification_status( Notification_Item $item, ?int $user_id, string $status, bool $update_sent_at ): bool {
-		$logger = self::logger();
-
-		$data   = array( 'status' => $status );
-		$format = array( '%s' );
-
-		$where_data   = array(
-			'blog_id'     => $item->blog_id,
-			'object_id'   => $item->object_id,
-			'object_type' => $item->object_type,
-			'trigger_id'  => $item->trigger_id,
-		);
-		$where_format = array( '%d', '%d', '%s', '%d' );
-		if ( ! is_null( $user_id ) ) {
-			$where_data['user_id'] = $user_id;
-			$where_format[]        = '%d';
+	private function query_with_retry( string $sql, int $attempts = 3 ) {
+		for ( $attempt = 1; ; $attempt++ ) {
+			$result = $this->wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			if ( false !== $result || $attempt >= $attempts || ! preg_match( '/Deadlock found|Lock wait timeout/', $this->wpdb->last_error ) ) {
+				return $result;
+			}
+			self::logger()->warning( "Query hit a lock conflict, retrying (attempt {$attempt} of {$attempts}).", array( 'error' => $this->wpdb->last_error ) );
+			usleep( wp_rand( 50, 200 ) * 1000 * $attempt );
 		}
-
-		if ( $update_sent_at ) {
-			$data['sent_at'] = \current_time( 'mysql', true ); // Use UTC time
-			$format[]        = '%s';
-		}
-
-		$result = $this->wpdb->update(
-			$this->notifications_table_name,
-			$data,
-			$where_data,
-			$format, // format for data
-			$where_format
-		);
-
-		if ( false === $result ) {
-			$logger->error(
-				"Failed to update status to '{$status}' for {$item->format()}, user_id {$user_id}.",
-				array(
-					'error' => $this->wpdb->last_error,
-					'query' => $this->wpdb->last_query,
-				)
-			);
-			return false;
-		}
-		return true;
 	}
 
 	/**

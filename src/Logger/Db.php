@@ -101,11 +101,12 @@ class Db extends AbstractLogger {
 
 				if ( false !== $inserted ) {
 					$this->trim_table( $wpdb, $table_name, 1000 );
+					return;
 				}
 			}
 		}
 
-		// Always log to the PHP error log as before.
+		// The Router sends lines to the error log on its own threshold: fall back only when the table did not take the line.
 		$this->fallback->log( $level, $message, $context );
 	}
 

@@ -272,4 +272,44 @@ class Scoped_Notify_Notification_Processor_Test extends WP_UnitTestCase {
 		$link = esc_url( add_query_arg( 'via', 'mail', get_permalink( $post_id ) ) );
 		$this->assertStringContainsString( "href=\"$link\"", $format->invoke( $this->processor, get_post( $post_id ), $item ) );
 	}
+
+	/**
+	 * A statement chosen as deadlock victim runs again; other errors do not.
+	 */
+	public function test_query_retries_on_deadlock() {
+		$errors = array( 'Deadlock found when trying to get lock; try restarting transaction', '' );
+		$db     = $this->getMockBuilder( wpdb::class )->disableOriginalConstructor()->onlyMethods( array( 'query' ) )->getMock();
+		$db->expects( $this->exactly( 2 ) )->method( 'query' )->willReturnCallback(
+			function () use ( $db, &$errors ) {
+				$db->last_error = array_shift( $errors );
+				return '' === $db->last_error ? 3 : false;
+			}
+		);
+		$retry = new ReflectionMethod( \Scoped_Notify\Notification_Processor::class, 'query_with_retry' );
+		$retry->setAccessible( true );
+		$this->assertSame( 3, $retry->invoke( new \Scoped_Notify\Notification_Processor( $db, SCOPED_NOTIFY_TABLE_QUEUE ), 'UPDATE x' ) );
+
+		$db = $this->getMockBuilder( wpdb::class )->disableOriginalConstructor()->onlyMethods( array( 'query' ) )->getMock();
+		$db->expects( $this->once() )->method( 'query' )->willReturnCallback(
+			function () use ( $db ) {
+				$db->last_error = 'Unknown column';
+				return false;
+			}
+		);
+		$this->assertFalse( $retry->invoke( new \Scoped_Notify\Notification_Processor( $db, SCOPED_NOTIFY_TABLE_QUEUE ), 'UPDATE x' ) );
+	}
+
+	/**
+	 * Lines for the error log go to `scoped_notify_log` when something listens.
+	 */
+	public function test_error_log_lines_go_to_the_log_action() {
+		$lines = array();
+		$keep  = function ( ...$args ) use ( &$lines ) {
+			$lines[] = $args;
+		};
+		add_action( 'scoped_notify_log', $keep, 10, 3 );
+		( new \Scoped_Notify\Logger\Error_Log() )->error( 'Boom', array( 'error' => 'x' ) );
+		remove_action( 'scoped_notify_log', $keep, 10 );
+		$this->assertSame( array( array( 'error', 'Boom {"error":"x"}', 'scoped-notify' ) ), $lines );
+	}
 }
