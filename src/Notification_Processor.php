@@ -633,6 +633,41 @@ class Notification_Processor {
 	}
 
 	/**
+	 * Deletes the rows with a status whose date column is at or before a cutoff, a batch at a time.
+	 *
+	 * One DELETE over the condition would scan and lock the whole status range (nearly the whole
+	 * table for 'sent') and deadlock with the processor's status updates. A plain SELECT takes no
+	 * locks, and the DELETE by id locks only the rows it removes. It runs until a batch comes back
+	 * short, so nothing due is left: rows newer than the cutoff never match, the loop ends.
+	 *
+	 * @param string $status      Status to delete.
+	 * @param string $date_column 'sent_at' or 'created_at'.
+	 * @param string $cutoff      UTC datetime; rows at or before it are deleted.
+	 * @param int    $batch_size  Rows per DELETE.
+	 * @return int|false Number of deleted rows, false when a query failed.
+	 */
+	private function delete_in_batches( string $status, string $date_column, string $cutoff, int $batch_size = 1000 ) {
+		$table = $this->notifications_table_name;
+		$where = "status = %s AND {$date_column} <= %s";
+		$total = 0;
+		do {
+			$ids = $this->wpdb->get_col( $this->wpdb->prepare( "SELECT queue_id FROM {$table} WHERE {$where} LIMIT %d", $status, $cutoff, $batch_size ) ); // phpcs:ignore WordPress.DB
+			if ( empty( $ids ) ) {
+				break;
+			}
+			$in      = implode( ',', array_map( 'intval', $ids ) );
+			$deleted = $this->query_with_retry( $this->wpdb->prepare( "DELETE FROM {$table} WHERE queue_id IN ({$in}) AND {$where}", $status, $cutoff ) ); // phpcs:ignore WordPress.DB
+			if ( false === $deleted ) {
+				return false;
+			}
+			$total += (int) $deleted;
+			$full   = count( $ids ) === $batch_size;
+		} while ( $full );
+
+		return $total;
+	}
+
+	/**
 	 * Cleans up old sent notifications from the queue.
 	 *
 	 * @param int $retention_period Retention period in seconds.
@@ -643,12 +678,7 @@ class Notification_Processor {
 
 		$cutoff_time = gmdate( 'Y-m-d H:i:s', time() - $retention_period );
 
-		$sql = "DELETE FROM {$this->notifications_table_name}
-				WHERE status = 'sent'
-				AND sent_at <= %s";
-
-		$query  = $this->wpdb->prepare( $sql, $cutoff_time ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$result = $this->wpdb->query( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$result = $this->delete_in_batches( 'sent', 'sent_at', $cutoff_time );
 
 		if ( false === $result ) {
 			$logger->error(
@@ -679,12 +709,7 @@ class Notification_Processor {
 
 		$cutoff_time = gmdate( 'Y-m-d H:i:s', time() - $retention_period );
 
-		$sql = "DELETE FROM {$this->notifications_table_name}
-				WHERE status = 'failed'
-				AND created_at <= %s";
-
-		$query  = $this->wpdb->prepare( $sql, $cutoff_time ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$result = $this->wpdb->query( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$result = $this->delete_in_batches( 'failed', 'created_at', $cutoff_time );
 
 		if ( false === $result ) {
 			$logger->error(

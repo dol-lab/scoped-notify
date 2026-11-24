@@ -19,7 +19,7 @@ namespace Scoped_Notify;
 defined( 'ABSPATH' ) || exit;
 
 // Define constants
-define( 'SCOPED_NOTIFY_VERSION', '0.4.0' ); // Incremented version to trigger DB update
+define( 'SCOPED_NOTIFY_VERSION', '0.5.0' ); // Incremented version to trigger DB update
 define( 'SCOPED_NOTIFY_PLUGIN_FILE', __FILE__ );
 define( 'SCOPED_NOTIFY_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOPED_NOTIFY_DB_VERSION_OPTION', 'scoped_notify_db_version' );

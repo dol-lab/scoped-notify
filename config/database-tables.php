@@ -55,12 +55,15 @@ return array(
             KEY `status_schedule` (`status`, `scheduled_send_time`),
             KEY `object_info` (`object_type`, `object_id`),
             KEY `user_collapse` (`user_id`, `collapse_key`),
+            KEY `item_user` (`blog_id`, `object_id`, `object_type`, `trigger_id`, `user_id`),
             FOREIGN KEY (`trigger_id`) REFERENCES `' . SCOPED_NOTIFY_TABLE_TRIGGERS . '` (`trigger_id`) ON DELETE CASCADE
         )',
 		'updates' => array(
 			'0.4.0' => 'ALTER TABLE {name}
 				ADD COLUMN `collapse_key` varchar(64) NULL DEFAULT NULL AFTER `reason`,
 				ADD KEY `user_collapse` (`user_id`, `collapse_key`)',
+			// The processor reads and updates one item's rows; without this its UPDATE locks the object's rows in every blog.
+			'0.5.0' => 'ALTER TABLE {name} ADD KEY `item_user` (`blog_id`, `object_id`, `object_type`, `trigger_id`, `user_id`)',
 		),
 	),
 	array(
