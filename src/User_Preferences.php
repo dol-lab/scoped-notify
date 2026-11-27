@@ -15,6 +15,9 @@ class User_Preferences {
 
 	const CHANNEL = 'mail';
 
+	/** @var array Per request: get_user_settings() by "user_id:blog_id". */
+	private static array $user_settings = array();
+
 	/**
 	 * get network preferences == user preferences
 	 * @param int $user_id
@@ -73,8 +76,8 @@ class User_Preferences {
 	}
 
 	/**
-	 * this checks for a post if notifications should be sent or not, and checks the full set of preferences
-	 * post, term, blog, user_settings
+	 * Whether the user gets mails about comments on a post: the most specific setting wins,
+	 * post, then the post's terms (any unmute wins), then blog, then network, else the default.
 	 * @param int $user_id
 	 * @param int $blog_id
 	 * @param int $post_id
@@ -82,121 +85,121 @@ class User_Preferences {
 	 * @throws Exception
 	 */
 	public static function get_post_toggle_state( int $user_id, int $blog_id, int $post_id ): bool {
-		global $wpdb;
-
-		$logger = self::logger();
-
-		// Note: the sql code is quite similar to Notification_Resolver, might be worth to refactor in the future to extract common code
-
 		$post = \get_post( $post_id );
 		if ( ! $post ) {
-			$logger->error(
+			self::logger()->error(
 				'Could not find post {post_id}.',
 				array( 'post_id' => $post_id )
 			);
 			throw new \Exception( 'Could not find post' );
 		}
 
-		$post_type = $post->post_type;
 		// Comment trigger key includes the PARENT post type
-		$trigger_key = 'comment-' . $post_type;
+		$trigger_key = 'comment-' . $post->post_type;
+		$settings    = self::get_user_settings( $user_id, $blog_id );
 
+		$mute = $settings['post'][ $trigger_key ][ $post->ID ] ?? null;
+		if ( null === $mute && ! empty( $settings['term'][ $trigger_key ] ) ) {
+			$term_mutes = array_intersect_key( $settings['term'][ $trigger_key ], array_flip( self::get_post_term_ids( $post ) ) );
+			$mute       = $term_mutes ? min( $term_mutes ) : null;
+		}
+		$mute ??= $settings['blog'][ $trigger_key ][0] ?? $settings['network'][ $trigger_key ][0] ?? null;
+
+		// The database stores "mute", the toggle shows "on".
+		return null === $mute ? SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE : 0 === $mute;
+	}
+
+	/**
+	 * The user's mail settings in a blog, loaded once per request: a page asks for each post card.
+	 * @param int $user_id
+	 * @param int $blog_id
+	 * @return array<string, array<string, array<int, int>>>  mute by scope, trigger key and object id (post, term, 0 for blog and network)
+	 */
+	private static function get_user_settings( int $user_id, int $blog_id ): array {
+		global $wpdb;
+
+		$key = "{$user_id}:{$blog_id}";
+		if ( isset( self::$user_settings[ $key ] ) ) {
+			return self::$user_settings[ $key ];
+		}
+
+		$sql = "
+			SELECT 'post' AS scope, s.post_id AS object_id, t.trigger_key, s.mute
+			FROM %i s JOIN %i t ON t.trigger_id = s.trigger_id AND t.channel = %s
+			WHERE s.user_id = %d AND s.blog_id = %d
+			UNION ALL
+			SELECT 'term', s.term_id, t.trigger_key, s.mute
+			FROM %i s JOIN %i t ON t.trigger_id = s.trigger_id AND t.channel = %s
+			WHERE s.user_id = %d AND s.blog_id = %d
+			UNION ALL
+			SELECT 'blog', 0, t.trigger_key, s.mute
+			FROM %i s JOIN %i t ON t.trigger_id = s.trigger_id AND t.channel = %s
+			WHERE s.user_id = %d AND s.blog_id = %d
+			UNION ALL
+			SELECT 'network', 0, t.trigger_key, s.mute
+			FROM %i s JOIN %i t ON t.trigger_id = s.trigger_id AND t.channel = %s
+			WHERE s.user_id = %d
+		";
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				$sql,
+				SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS,
+				SCOPED_NOTIFY_TABLE_TRIGGERS,
+				self::CHANNEL,
+				$user_id,
+				$blog_id,
+				SCOPED_NOTIFY_TABLE_SETTINGS_TERMS,
+				SCOPED_NOTIFY_TABLE_TRIGGERS,
+				self::CHANNEL,
+				$user_id,
+				$blog_id,
+				SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS,
+				SCOPED_NOTIFY_TABLE_TRIGGERS,
+				self::CHANNEL,
+				$user_id,
+				$blog_id,
+				SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES,
+				SCOPED_NOTIFY_TABLE_TRIGGERS,
+				self::CHANNEL,
+				$user_id,
+			)
+		);
+
+		if ( '' !== $wpdb->last_error ) {
+			self::logger()->error(
+				'Could not read the notification settings of user {user_id} in blog {blog_id}: {error}',
+				array(
+					'user_id' => $user_id,
+					'blog_id' => $blog_id,
+					'error'   => $wpdb->last_error,
+				)
+			);
+		}
+
+		$settings = array();
+		foreach ( $rows ?? array() as $row ) {
+			$settings[ $row->scope ][ $row->trigger_key ][ (int) $row->object_id ] = (int) $row->mute;
+		}
+
+		self::$user_settings[ $key ] = $settings;
+		return $settings;
+	}
+
+	/**
+	 * @param \WP_Post $post
+	 * @return int[]
+	 */
+	private static function get_post_term_ids( \WP_Post $post ): array {
 		// get_the_terms() reads the term cache a post query primed; wp_get_post_terms() always queries.
 		$term_ids = array();
-		foreach ( \get_object_taxonomies( $post_type ) as $taxonomy ) {
+		foreach ( \get_object_taxonomies( $post->post_type ) as $taxonomy ) {
 			$terms = \get_the_terms( $post, $taxonomy );
 			if ( is_array( $terms ) ) {
 				array_push( $term_ids, ...\wp_list_pluck( $terms, 'term_id' ) );
 			}
 		}
-		$term_ids_placeholder = ! empty( $term_ids ) ? implode( ',', array_fill( 0, count( $term_ids ), '%d' ) ) : 'NULL';
-
-		// Prepare arguments for the query
-		$query_args = array_merge(
-			array( SCOPED_NOTIFY_TABLE_TRIGGERS, $trigger_key ),
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_POST_COMMENTS, $blog_id, $post->ID ), // for post settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_TERMS, $blog_id ),              // for term settings
-			! empty( $term_ids ) ? $term_ids : array(), // for term settings term_id IN (...)
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_BLOGS, $blog_id ),              // for blog settings
-			array( SCOPED_NOTIFY_TABLE_SETTINGS_USER_PROFILES ),                 // network settings
-			array( $user_id )
-		);
-
-		// Query logic similar to posts, but includes the post-specific setting as highest priority.
-		// Table names are hardcoded as per config/database-tables.php
-		$sql = "
-            SELECT
-                COALESCE(
-                    post_comment.mute, -- Specificity 1: Post setting for comments
-                    term.mute,  	  -- Specificity 2: Term: if any is unmute => unmute, if all are mute => mute
-                    blog.mute,         -- Specificity 3: Blog setting
-                    network.mute       -- Specificity 4: Network setting
-                    -- Specificity 5 (Default) handled in PHP
-                ) as final_mute_state
-            FROM
-                {$wpdb->users} u
-
-			JOIN %i t on t.trigger_key = %s
-
-			-- post settings
-            LEFT JOIN %i post_comment ON post_comment.user_id = u.ID
-                AND post_comment.blog_id = %d
-                AND post_comment.post_id = %d
-                AND post_comment.trigger_id = t.trigger_id
-
-			-- term settings
-            LEFT JOIN ( -- Find if ANY relevant term setting is UNMUTE (0) then unmute, if all are mute (1), then mute
-                SELECT user_id, trigger_id, case when MIN(mute) = 0 then 0 when min(mute) = 1 then 1 else null end as mute
-                FROM %i
-                WHERE blog_id = %d
-                " . ( ! empty( $term_ids ) ? "AND term_id IN ({$term_ids_placeholder})" : 'AND 1=0' ) . '
-                GROUP BY user_id, trigger_id
-            ) term ON term.user_id = u.ID and term.trigger_id = t.trigger_id
-
-			-- blog settings
-            LEFT JOIN %i blog ON blog.user_id = u.ID
-                AND blog.blog_id = %d
-                AND blog.trigger_id = t.trigger_id
-
-			-- user settings
-            LEFT JOIN %i network ON network.user_id = u.ID
-                AND network.trigger_id = t.trigger_id
-
-            WHERE
-                u.ID = %d
-        ';
-
-		$prepared_sql = $wpdb->prepare( $sql, $query_args );
-		$results      = $wpdb->get_results( $prepared_sql );
-
-		// Check for DB errors before proceeding
-		if ( $results === null ) {
-			$logger->error(
-				'Database error occurred while fetching notification settings for comment.',
-				array(
-					'query'      => $wpdb->last_query,
-					'error'      => $wpdb->last_error,
-					'comment_id' => $comment->comment_ID,
-					'post_id'    => $post->ID,
-					'blog_id'    => $blog_id,
-				)
-			);
-			throw new \Exception( 'Database error occurred while fetching notification settings for comment.' );
-		}
-
-		if ( count( $results ) === 0 ) {
-			// no entry found => global default
-			return SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
-		}
-
-		// we invert the database wording "mute=1" to toggle state off=false here
-		if ( '1' === $results[0]->final_mute_state ) {
-			return false;
-		} elseif ( '0' === $results[0]->final_mute_state ) {
-			return true;
-		} else {
-			return SCOPED_NOTIFY_DEFAULT_NOTIFICATION_STATE;
-		}
+		return $term_ids;
 	}
 
 	/**
@@ -296,6 +299,8 @@ class User_Preferences {
 	public static function set( Scope $scope, array $fields, Notification_Preference $pref ): bool {
 		global $wpdb;
 
+		self::$user_settings = array();
+
 		$logger = self::logger();
 
 		$table = self::get_table_name( $scope );
@@ -355,6 +360,8 @@ class User_Preferences {
 	 */
 	public static function remove( Scope $scope, array $fields ): bool {
 		global $wpdb;
+
+		self::$user_settings = array();
 
 		$logger = self::logger();
 

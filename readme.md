@@ -129,6 +129,11 @@ Applied in `Notification_Processor` to the users of one queue item, just before 
 
 Every link to a post or comment in a notification goes through `Notification_Processor::origin_link( $url, $channel )`, which adds `via=mail` (or `via=push`, …) and keeps the rest of the link, `#comment-N` included. The site can then decide at click time where the reader lands (Spaces' defaultspace opens the post on the stream). Deciding at send time through a filter would not work for a theme: mails are rendered in cron after `switch_to_blog()`, where the main site's theme is loaded, not the Space's. Templates that build their own links (spaces-scoped-notify) call it too.
 
+## Notes
+
+- **The post switch reads settings once per request.** `User_Preferences::get_post_toggle_state()` runs for every post card, so it loads the user's `mail` settings in a blog in one query (`get_user_settings()`) and resolves each post in PHP. `set()` and `remove()` reset that memo; other writes to the settings tables (the delete hooks, direct inserts) do not, and a later read in the same request sees the old state.
+- **Tests and the triggers table:** several tests `DELETE FROM` the triggers table, and a later `TRUNCATE` (an implicit commit) makes that stick for the rest of the run. A test that needs the default triggers inserts them in `setUp()` (`tests/test-user-preferences.php`).
+
 ## Rules/Limits
 - ✅ if the ``*_settings_*`` tables are empty, all users receive notifications, if they are a member in a blog. being a member means having any capability in a blog (defined in global table ``wp_usermeta`` by default).
 - ✅ **Most specific rule wins**. Examples:
